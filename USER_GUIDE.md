@@ -1,271 +1,154 @@
-<div align="center">
+﻿# Murabha Cloud — User Guide
 
-# 📘 دليل المستخدم — Smart Murabha
+Welcome to **Murabha Cloud**, an intuitive platform for installment contract management, multi-branch tracking, and collections.
 
-**نظام إدارة المبيعات والتحصيلات**
-
-الإصدار: V.1.1.9
-
-</div>
+This guide walks you through daily workflows, understanding your dashboards, and managing your branch efficiently.
 
 ---
 
-## 📑 المحتويات
-
-1. [نظرة عامة](#-نظرة-عامة)
-2. [لوحة التحكم](#-لوحة-التحكم)
-3. [العملاء](#-العملاء)
-4. [المبيعات](#-المبيعات)
-5. [الأقساط](#-الأقساط)
-6. [التحصيلات](#-التحصيلات)
-7. [المتابعة](#-المتابعة)
-8. [التقارير](#-التقارير)
-9. [الاستيراد](#-الاستيراد)
-10. [الإعدادات](#-الإعدادات)
-11. [التحديثات](#-التحديثات)
+## 📑 Quick Navigation
+1. [Getting Started & Logging In](#1-getting-started--logging-in)
+2. [Navigating Your Workspace](#2-navigating-your-workspace)
+3. [HQ Executive Dashboard & Branch Switcher](#3-hq-executive-dashboard--branch-switcher)
+4. [Customer Management](#4-customer-management)
+5. [Sales & Installment Contracts](#5-sales--installment-contracts)
+6. [Installment Tracking & Collections](#6-installment-tracking--collections)
+7. [Reports & Financial Reconciliation](#7-reports--financial-reconciliation)
+8. [Administration: Users & Branches](#8-administration-users--branches)
+9. [Oracle Database Migration Wizard](#9-oracle-database-migration-wizard)
 
 ---
 
-## 🌐 نظرة عامة
+## 1. Getting Started & Logging In
 
-**Smart Murabha** هو برنامج مكتبي مصمم لفرق التحصيل وإدارة مبيعات الأجهزة بالتقسيط. يعمل البرنامج بدون إنترنت ويحتفظ بكل البيانات محلياً على جهازك.
+When you open Murabha Cloud in your browser, you will see the login screen:
 
-### القائمة الجانبية
+1. Enter your assigned **Username** and **Password**.
+2. Click **Sign In**.
+3. Once authenticated, the system takes you directly to your tailored dashboard based on your role:
+   - **Headquarters Staff** (`SUPER_ADMIN`, `HQ_MANAGER`, `HQ_ACCOUNTANT`): Opened directly to the **HQ Executive Dashboard**.
+   - **Branch Personnel** (`BRANCH_MANAGER`, `BRANCH_COLLECTOR`, `BRANCH_DATA_ENTRY`): Opened to your branch's operational dashboard.
 
-القائمة مقسمة إلى ثلاث مجموعات:
-
-| المجموعة | الأقسام |
-|----------|---------|
-| **العمليات** | لوحة التحكم · العملاء · المبيعات · المتابعة |
-| **المالية** | الأقساط · التحصيلات · التقارير |
-| **النظام** | الاستيراد · الإعدادات |
+> **Note**: Your session is protected by automated security. If you leave your session idle, you may be prompted to sign in again to protect customer financial records.
 
 ---
 
-## 📊 لوحة التحكم
+## 2. Navigating Your Workspace
 
-هي الشاشة الرئيسية التي تعرض ملخصاً شاملاً لحالة العمل. **كل الكروت قابلة للضغط** وتأخذك مباشرة للتفاصيل.
+The sidebar organizes the entire system into three logical areas:
 
-### الكروت الرئيسية (الملونة)
-
-| الكارت | ماذا يعرض | عند الضغط عليه |
-|--------|-----------|----------------|
-| 🔵 **تحصيلات اليوم** | مجموع المبالغ المحصلة اليوم وعدد العمليات | يفتح صفحة **التحصيلات** |
-| 🔴 **إجمالي المتأخر** | مجموع الأقساط المتأخرة عن السداد | يفتح **تقرير المتأخرات** مباشرة |
-| 🟠 **مستحق هذا الشهر** | الأقساط المطلوب تحصيلها خلال الشهر الحالي | يفتح **تقرير الأقساط** بفلتر الشهر الحالي |
-| 🔷 **إجمالي المتبقي** | المديونية الكلية على جميع العملاء | يفتح **المبيعات النشطة** فقط |
-
-### الكروت الثانوية (الصغيرة)
-
-تعرض إحصائيات سريعة مثل: مبيعات كاش، مبيعات أقساط، إجمالي المدفوع، عدد المبيعات، العملاء النشطون، ومستحقات الشهر.
-
-### الرسوم البيانية
-
-- **دائرة المبيعات**: توزيع المبيعات بين الكاش والأقساط.
-- **دائرة المحفظة**: نسبة المدفوع مقابل المتبقي.
-- **أعمدة الأقساط**: مقارنة بين المستحق والمتأخر.
-
-### القوائم السفلية
-
-- **أحدث المدفوعات**: آخر 5 عمليات دفع. اضغط على أي عملية لفتح **تفاصيل البيع**.
-- **الأقساط القادمة**: أقرب 5 أقساط مستحقة. اضغط على أي قسط لفتح **ملف العميل**.
-- **جدول مستحقات الشهر**: قائمة تفصيلية بأقساط الشهر الحالي.
+- **Operations**:
+  - **Dashboard**: Quick metrics, daily collection counters, and overdue alerts.
+  - **Customers**: Customer directory, phone numbers, and balance histories.
+  - **Sales & Contracts**: Register new sales, view contract status, and generate printable contracts.
+  - **Follow-ups**: Client communication logs and payment reminders.
+- **Finance**:
+  - **Installments**: Upcoming, paid, and overdue installments with instant payment actions.
+  - **Collections**: History of receipts issued, payment methods, and voiding tools.
+  - **Reports**: Detailed breakdown of monthly closures, collection ratios, and customer statements.
+- **Administration & HQ** *(visible to authorized roles)*:
+  - **HQ Dashboard**: Global consolidated metrics and branch performance rankings.
+  - **Branch Management**: Create branches, view branch phone/address info, and toggle active status.
+  - **User Management**: Add team members, set roles, and reset passwords.
+  - **Settings**: Branch identity, automated backups, and Oracle migration tooling.
 
 ---
 
-## 👥 العملاء
+## 3. HQ Executive Dashboard & Branch Switcher
 
-### إضافة عميل جديد
-1. اضغط على زر **"إضافة عميل جديد"**.
-2. أدخل البيانات المطلوبة:
-   - **كود العميل** (BK Code) — رقم تعريفي فريد.
-   - **الاسم** — اسم العميل بالكامل.
-   - **رقم الهاتف** — للتواصل.
-   - **العنوان** — عنوان العميل.
-3. اضغط **حفظ**.
+If you are an executive or accountant at Headquarters:
 
-### البحث عن عميل
-استخدم شريط البحث في الأعلى للبحث بـ **الاسم** أو **رقم الهاتف** أو **الكود**.
-
-### تفاصيل العميل
-اضغط على اسم العميل لعرض ملفه الكامل والذي يتضمن:
-- ملخص مالي (إجمالي المبيعات، المدفوع، المتبقي).
-- قائمة بكل عمليات البيع.
-- سجل المتابعات.
+- **Consolidated Financial Summary**: Instant visibility into total active debt, amount collected today, and overall collection efficiency across all branches combined.
+- **Branch Switcher Dropdown**: Located at the top of your screen. You can either select a specific branch (e.g., "Cairo Branch" or "Alexandria Branch") to filter all numbers, or keep it set to **All Branches (HQ)** for full enterprise aggregation.
+- **Branch Benchmarking Table**: Compares branch collection percentages side-by-side, helping you identify which branches are leading and which have overdue amounts requiring follow-up.
+- **Live Collections Feed**: Displays payments as they are collected in real-time across branches.
 
 ---
 
-## 🛒 المبيعات
+## 4. Customer Management
 
-### تسجيل عملية بيع جديدة
-1. اضغط على **"إضافة عملية بيع"**.
-2. اختر **العميل** من القائمة.
-3. أدخل **رقم الماكينة** (Serial Number).
-4. اختر **نوع البيع**:
-   - **دفعة كاملة (كاش)**: العميل يدفع المبلغ كاملاً.
-   - **أقساط**: العميل يدفع على شهور.
-5. في حالة الأقساط، أدخل:
-   - **السعر الإجمالي**.
-   - **الدفعة المقدمة** (المقدم).
-   - **عدد الأشهر**.
-   - **مكان الدفع** (ضامن / البريد / البنك).
-6. اضغط **حفظ**.
+### Adding a New Customer
+1. Navigate to **Customers** from the sidebar.
+2. Click **New Customer**.
+3. Fill in the client's information:
+   - **Name** and **Customer Code / National ID**.
+   - **Phone Number** (vital for payment reminders).
+   - **Address** and **Notes**.
+4. Click **Save Customer**.
 
-> 💡 البرنامج يقوم تلقائياً بإنشاء **جدول الأقساط** الشهرية بعد حفظ عملية البيع.
-
-### الفلاتر
-يمكنك تصفية المبيعات حسب:
-- **الحالة**: نشط / مكتمل / ملغي.
-- **النوع**: كاش / أقساط.
-
-### تفاصيل البيع
-اضغط على أي عملية بيع لعرض:
-- بيانات العميل والماكينة.
-- جدول الأقساط وحالة كل قسط.
-- سجل المدفوعات.
-- إمكانية **طباعة العقد**.
+### Viewing Customer Statements
+Click on any customer in the list to open their complete ledger:
+- Every contract associated with the customer.
+- Paid vs. remaining installments.
+- One-click PDF / Excel statement export.
 
 ---
 
-## 📅 الأقساط
+## 5. Sales & Installment Contracts
 
-تعرض هذه الصفحة جميع الأقساط المسجلة في النظام.
-
-### الفلاتر المتاحة
-- **الكل**: جميع الأقساط.
-- **مستحق اليوم**: الأقساط التي يحين موعدها اليوم.
-- **متأخر**: الأقساط التي تجاوزت تاريخ الاستحقاق.
-- **مدفوع**: الأقساط المسددة بالكامل.
-
-### دفع قسط
-1. اضغط على زر **"دفع"** بجانب القسط المطلوب.
-2. أدخل المبلغ المدفوع ورقم الإيصال.
-3. اضغط **حفظ**.
-
----
-
-## 💳 التحصيلات
-
-صفحة التحصيلات هي المكان الرئيسي لتسجيل عمليات الدفع.
-
-### تسجيل دفعة جديدة
-1. اضغط **"إضافة دفعة"**.
-2. اختر **العميل**.
-3. اختر **عملية البيع** المرتبطة.
-4. أدخل **المبلغ**.
-5. أدخل **رقم الإيصال**.
-6. اختر **نوع الدفع**:
-   - دفعة كاملة / دفعة مقدمة / قسط.
-7. اختر **مكان الدفع** (ضامن / البريد / البنك).
-8. اضغط **حفظ**.
-
-> 💡 **التوزيع التلقائي**: إذا لم تختر أقساطاً محددة، سيقوم البرنامج بتوزيع المبلغ تلقائياً على الأقساط الأقدم أولاً.
-
-### معلومات مهمة أثناء الدفع
-- **المديونية الحالية**: المبلغ المتبقي على العميل قبل الدفع.
-- **المديونية بعد الدفع**: المبلغ المتبقي بعد تسجيل الدفعة.
+### Registering a New Installment Sale
+1. Go to **Sales** and click **New Sale Contract**.
+2. Select the customer from the list.
+3. Enter device/machine details:
+   - **Machine Serial Number**
+   - **Total Price**
+   - **Down Payment** (if any) and initial receipt number.
+4. Set the repayment schedule:
+   - Number of installments (e.g., 6, 12, 18, 24 months).
+   - First installment due date.
+5. Review the calculated monthly payment.
+6. Click **Confirm & Issue Contract**. The installment schedule is generated automatically.
 
 ---
 
-## 🔔 المتابعة
+## 6. Installment Tracking & Collections
 
-نظام لتتبع التواصل مع العملاء وتسجيل ملاحظات المتابعة.
+### Collecting Single Installments
+1. Go to **Installments**.
+2. Search by customer name, serial number, or receipt number.
+3. Locate the due installment and click **Pay**.
+4. Select the payment method (Cash, Bank Transfer, Card) and enter the receipt number.
+5. Click **Submit Payment**. The system marks the installment as paid and updates the remaining balance instantly.
 
-### إضافة متابعة
-1. اضغط **"إضافة متابعة"**.
-2. اختر **العميل**.
-3. اكتب **ملاحظة** (مثال: "تم الاتصال بالعميل ووعد بالسداد يوم 15").
-4. حدد **موعد المتابعة القادمة**.
-5. اضغط **حفظ**.
-
-### حالات المتابعة
-| الحالة | المعنى |
-|--------|--------|
-| 🟠 **معلقة** | لم يتم الانتهاء منها بعد |
-| 🔴 **متأخرة** | تجاوزت موعد المتابعة المحدد |
-| 🟢 **مكتملة** | تم الانتهاء من المتابعة |
-
-### إتمام المتابعة
-اضغط **"تم"** بجانب المتابعة بعد الانتهاء منها لتحويل حالتها إلى "مكتملة".
+### Bulk Payment Distribution (FIFO)
+When a customer pays a lump sum covering multiple installments:
+- The system automatically settles the oldest overdue installments first (First-In, First-Out).
+- A combined single receipt is generated for the customer.
 
 ---
 
-## 📈 التقارير
+## 7. Reports & Financial Reconciliation
 
-يوفر البرنامج 4 أنواع من التقارير:
+Access the **Reports** section to generate clear financial insights:
 
-### 1. تقرير المبيعات
-يعرض تفاصيل جميع عمليات البيع مع إمكانية:
-- تحديد فترة زمنية (من/إلى).
-- تصفية حسب النوع (كاش/أقساط).
-- تجميع حسب العميل أو الشهر.
-
-### 2. تقرير التحصيلات
-يعرض جميع عمليات الدفع المسجلة مع إمكانية:
-- تحديد فترة زمنية.
-- تصفية حسب نوع الدفع ومكان الدفع.
-- تجميع حسب العميل أو الشهر.
-
-### 3. تقرير المتأخرات
-يعرض الأقساط المتأخرة عن السداد مع:
-- اسم العميل ورقم الماكينة.
-- رقم القسط والمبلغ المتبقي.
-- تاريخ الاستحقاق المتجاوز.
-
-### 4. إقفال الشهر
-تقرير شامل يلخص كل نشاط الشهر في مكان واحد:
-- المبيعات (كاش + أقساط).
-- التحصيلات (دفعة كاملة + مقدم + أقساط).
-- المتأخرين عن السداد.
-- حالة المحفظة (إجمالي المديونية وعدد العملاء).
-
-### التصدير
-اضغط **"تصدير إلى Excel"** في أي تقرير لتحميله كملف Excel جاهز للطباعة أو الإرسال.
+- **Collection Ratio Report**: Measures collected dues against expected dues within any date range.
+- **Overdue Installments Report**: Lists delinquent accounts grouped by branch or days past due.
+- **Month Closing Report**: Formal audit summary showing cash sales, down payments, and installment collections ready for accounting books.
+- **Excel & PDF Exports**: Every report includes a one-click export button.
 
 ---
 
-## 📥 الاستيراد
+## 8. Administration: Users & Branches
 
-يتيح لك استيراد البيانات من ملفات Excel لتسريع إدخال البيانات بدلاً من الإدخال اليدوي.
+### Managing Branches (`SUPER_ADMIN` / `HQ_MANAGER`)
+- Head over to **Branches Management**.
+- Click **Add Branch** to establish a new operational location.
+- Enter a unique branch code (e.g., `BR-ALX`), official branch name, address, and contact number.
 
----
-
-## ⚙️ الإعدادات
-
-### إعدادات الفرع
-- **اسم الفرع**: أدخل اسم فرعك لتظهر في التقارير.
-- **تصدير شهري**: تصدير بيانات الشهر لمشاركتها مع الإدارة.
-
-### النسخ الاحتياطي
-- **تحميل نسخة احتياطية**: يحمل ملف قاعدة البيانات بالكامل على جهازك.
-- **استعادة نسخة احتياطية**: لاسترجاع بيانات من نسخة سابقة.
-- **نسخ احتياطي تلقائي**: يقوم بإنشاء نسخة احتياطية تلقائياً.
-
-> ⚠️ **تنبيه مهم**: عند استعادة نسخة قديمة، سيقوم البرنامج تلقائياً بتحديث هيكل قاعدة البيانات ليتوافق مع النسخة الحالية.
-
-### تصفير قاعدة البيانات
-- هذا الخيار يحذف **جميع البيانات** بشكل نهائي.
-- يتطلب إدخال **رمز تحقق** للحماية من الحذف العرضي.
-
-### البحث عن تحديثات
-اضغط **"البحث عن تحديثات"** للتحقق من وجود نسخة جديدة. إذا وُجد تحديث، سيقوم البرنامج بتثبيته تلقائياً.
+### Managing Users (`SUPER_ADMIN` / `HQ_MANAGER`)
+- Go to **Users Management**.
+- Click **Add User** to create staff accounts.
+- Assign the appropriate role (`BRANCH_MANAGER`, `BRANCH_COLLECTOR`, `BRANCH_DATA_ENTRY`) and link them to their branch.
+- **Resetting Passwords**: Click the key icon beside any user to issue a new secure password.
+- **Account Suspension**: Temporarily suspend or reactivate staff access with one click.
 
 ---
 
-## 🔄 التحديثات
+## 9. Oracle Database Migration Wizard
 
-البرنامج يتحقق تلقائياً من وجود تحديثات عند التشغيل.
+For system administrators transitioning from PostgreSQL to an enterprise Oracle Database:
 
-- عند ظهور رسالة **"تحديث متاح"**، اضغط **"تحميل التحديث"**.
-- التحديث يتم محلياً وبأمان تام بدون أي تحذيرات أمنية.
-- بعد التحديث، سيتم إعادة تشغيل البرنامج تلقائياً.
-
----
-
-<div align="center">
-
-**Smart Murabha** — صُمم لتبسيط عملك اليومي 💼
-
-© 2026 جميع الحقوق محفوظة
-
-</div>
+1. Navigate to **Settings** and select the **Oracle Migration** tab (available to `SUPER_ADMIN`).
+2. **Step 1 — Connection**: Enter your Oracle Database host, port (default `1521`), service name (e.g., `FREEPDB1`), username, and password. Click **Test Oracle Connection**.
+3. **Step 2 — Provision Schema**: Click **Provision Tables Now** to automatically generate the database structure.
+4. **Step 3 — Migrate & Audit**: Click **Start Full Migration**. The system streams all historical branches, users, customers, and sales into Oracle and presents a side-by-side financial audit showing zero discrepancies.
