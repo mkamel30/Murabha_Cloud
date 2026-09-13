@@ -148,7 +148,7 @@ async function runAllTests() {
         headers: { Authorization: `Bearer ${superAdminToken}` },
       });
       const branchList = Array.isArray(branchesRes.data) ? branchesRes.data : branchesRes.data.branches;
-      cairoBranchId = branchList.find((b: any) => b.code === 'BR-CAI')?.id;
+      cairoBranchId = branchList.find((b: any) => b.code === 'BR-GAYSH' || b.code === 'BR-CAI')?.id;
       if (branchList.length >= 2) {
         recordPass('GET /api/branches lists all branches with financial summaries', {
           count: branchList.length,

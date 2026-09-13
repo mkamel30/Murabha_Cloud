@@ -4,7 +4,7 @@ import { useToast } from '../lib/toast';
 import { LoadingScreen } from '../lib/Spinner';
 import { Modal } from '../lib/Modal';
 import { PrimaryButton, SecondaryButton, PageHeader } from '../lib/Actions';
-import { Building2, Plus, Phone, MapPin, ToggleLeft, ToggleRight, Edit2 } from 'lucide-react';
+import { Building2, Plus, Phone, MapPin, ToggleLeft, ToggleRight, Edit2, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
@@ -84,6 +84,24 @@ export default function BranchesManagement({ embedded = false }: { embedded?: bo
     }
   };
 
+  const handleDeleteBranch = async (b: any) => {
+    if (b.code === 'HQ') {
+      showToast('لا يمكن حذف المقر الرئيسي', 'error');
+      return;
+    }
+    if (!window.confirm(`هل أنت متأكد من رغبتك في حذف الفرع "${b.name}" نهائياً؟`)) {
+      return;
+    }
+    try {
+      await branchesApi.delete(b.id);
+      showToast('تم حذف الفرع بنجاح', 'success');
+      await refreshBranches();
+      loadBranches();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'فشل حذف الفرع', 'error');
+    }
+  };
+
   if (loading) return <LoadingScreen message="جاري تحميل الفروع..." />;
 
   return (
@@ -142,6 +160,15 @@ export default function BranchesManagement({ embedded = false }: { embedded?: bo
                 >
                   {b.isActive ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
                 </button>
+                {b.code !== 'HQ' && (
+                  <button
+                    onClick={() => handleDeleteBranch(b)}
+                    className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                    title="حذف الفرع"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
 

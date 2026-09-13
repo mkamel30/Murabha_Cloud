@@ -154,4 +154,34 @@ router.post('/:id/toggle-active', requireRoles(UserRole.SUPER_ADMIN), async (req
   }
 });
 
+// DELETE /api/branches/:id - Only SUPER_ADMIN
+router.delete('/:id', requireRoles(UserRole.SUPER_ADMIN), async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const branchRepo = AppDataSource.getRepository(Branch);
+    const branch = await branchRepo.findOne({ where: { id } });
+    if (!branch) {
+      return res.status(404).json({ error: 'الفرع غير موجود' });
+    }
+
+    if (branch.code === 'HQ') {
+      return res.status(400).json({ error: 'لا يمكن حذف المقر الرئيسي (HQ)' });
+    }
+
+    const userRepo = AppDataSource.getRepository(User);
+    const usersInBranch = await userRepo.count({ where: { branchId: id } });
+    if (usersInBranch > 0) {
+      return res.status(400).json({ error: `لا يمكن حذف الفرع لوجود (${usersInBranch}) مستخدمين مرتبطين به. يرجى نقلهم أو حذفهم أولاً.` });
+    }
+
+    await branchRepo.remove(branch);
+    await logAudit(req, 'BRANCH_DELETE', 'Branch', id, { code: branch.code, name: branch.name });
+    saveLocalState(AppDataSource).catch(() => {});
+
+    res.json({ message: 'تم حذف الفرع بنجاح' });
+  } catch (err) {
+    res.status(500).json({ error: 'فشل حذف الفرع' });
+  }
+});
+
 export default router;

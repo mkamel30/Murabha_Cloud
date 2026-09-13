@@ -28,18 +28,20 @@ export async function ensureInitialSeed(): Promise<void> {
     console.log('[Seed] ✅ Created default HQ Branch');
   }
 
-  // 2. Create Initial Branch 1
-  let branch1 = await branchRepo.findOne({ where: { code: 'BR-CAI' } });
+  // 2. Create Initial Operational Branch: القاهرة-الجيش
+  const defaultBranchId = 'ec3638e9-2d00-4956-93fd-f9c31630fb94';
+  let branch1 = await branchRepo.findOne({ where: { id: defaultBranchId } });
   if (!branch1) {
     branch1 = branchRepo.create({
-      code: 'BR-CAI',
-      name: 'فرع القاهرة',
-      address: 'مدينة نصر - القاهرة',
+      id: defaultBranchId,
+      code: 'BR-GAYSH',
+      name: 'القاهرة-الجيش',
+      address: 'شارع الجيش - القاهرة',
       phone: '01100000001',
       isActive: true,
     });
     await branchRepo.save(branch1);
-    console.log('[Seed] ✅ Created Branch: فرع القاهرة');
+    console.log('[Seed] ✅ Created Branch: القاهرة-الجيش');
   }
 
   // 3. Create Super Admin User
@@ -57,18 +59,4 @@ export async function ensureInitialSeed(): Promise<void> {
   });
   await userRepo.save(superAdmin);
   console.log('[Seed] ✅ Created Super Admin user: username: "admin"');
-
-  // 4. Create Sample Branch Manager
-  const branchMgrPassword = await hashPassword('Manager@2026!');
-  const branchMgr = userRepo.create({
-    username: 'manager_cairo',
-    name: 'مدير فرع القاهرة',
-    email: 'manager.cairo@murabha.cloud',
-    password: branchMgrPassword,
-    role: UserRole.BRANCH_MANAGER,
-    branchId: branch1.id,
-    isActive: true,
-  });
-  await userRepo.save(branchMgr);
-  console.log('[Seed] ✅ Created Branch Manager user: username: "manager_cairo"');
 }

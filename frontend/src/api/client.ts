@@ -84,6 +84,7 @@ export const branchesApi = {
   create: (data: { code: string; name: string; address?: string; phone?: string }) => api.post('/branches', data).then((r) => r.data),
   update: (id: string, data: any) => api.put(`/branches/${id}`, data).then((r) => r.data),
   toggleActive: (id: string) => api.post(`/branches/${id}/toggle-active`).then((r) => r.data),
+  delete: (id: string) => api.delete(`/branches/${id}`).then((r) => r.data),
 };
 
 export const branchApi = {
