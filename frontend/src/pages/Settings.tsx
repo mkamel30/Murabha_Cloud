@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { backupApi, adminApi, branchApi, exportApi } from '@/api/client';
 import { PageHeader, PrimaryButton } from '@/lib/Actions';
 import { useToast } from '@/lib/toast';
-import { Settings, Download, Upload, RefreshCw, Trash2, Lock, ShieldCheck, Building2, FileSpreadsheet, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, Download, Upload, RefreshCw, Trash2, Lock, ShieldCheck, Building2, FileSpreadsheet, BookOpen, ChevronDown, ChevronUp, Database } from 'lucide-react';
+import OracleMigrationWizard from '@/components/OracleMigrationWizard';
+import { useAuth } from '@/context/AuthContext';
 
 interface BackupFile {
   name: string;
@@ -26,7 +28,8 @@ export default function SettingsPage() {
   const [savedBranchName, setSavedBranchName] = useState('');
   const [branchLoading, setBranchLoading] = useState(false);
   const [activeHelpTab, setActiveHelpTab] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'system' | 'data' | 'guide'>('system');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'system' | 'data' | 'guide' | 'oracle'>('system');
 
   const toggleHelpTab = (tab: string) => {
     setActiveHelpTab(activeHelpTab === tab ? null : tab);
@@ -239,6 +242,21 @@ export default function SettingsPage() {
           <BookOpen className="w-4 h-4" />
           <span>دليل المساعدة</span>
         </button>
+
+        {user?.role === 'SUPER_ADMIN' && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('oracle')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+              activeTab === 'oracle'
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20 scale-[1.02]'
+                : 'text-amber-700 hover:bg-amber-100/60'
+            }`}
+          >
+            <Database className="w-4 h-4" />
+            <span>ترحيل Oracle</span>
+          </button>
+        )}
       </div>
 
       {/* Tab: System Update, Branch Identity, and Network Access */}
@@ -720,6 +738,13 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tab: Oracle Database Migration */}
+      {activeTab === 'oracle' && user?.role === 'SUPER_ADMIN' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <OracleMigrationWizard />
         </div>
       )}
 

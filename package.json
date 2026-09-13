@@ -1,24 +1,17 @@
 {
-  "name": "payment-app",
-  "version": "1.4.8",
-  "versionLabel": "1.4.8",
+  "name": "murabha-cloud",
+  "version": "2.0.0",
   "private": true,
-  "description": "Payment & Sales Desktop App for collection team",
+  "description": "Murabha Cloud - Multi-Branch Payment & Sales Enterprise Web App",
   "workspaces": [
     "frontend",
-    "backend",
-    "electron"
+    "backend"
   ],
   "scripts": {
-    "dev": "npm run dev:all",
+    "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "dev:frontend": "npm run dev -w frontend",
     "dev:backend": "npm run dev -w backend",
-    "dev:electron": "npm run dev -w electron",
-    "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:electron\"",
-    "build": "npm run build -w frontend && npm run build -w backend",
-    "build:electron": "npm run build -w electron",
-    "prisma:migrate": "npm run prisma:migrate -w backend",
-    "prisma:seed": "npm run prisma:seed -w backend",
+    "build": "npm run build -w backend && npm run build -w frontend",
     "lint": "npm run lint -w frontend && npm run lint -w backend",
     "typecheck": "npm run typecheck -w frontend && npm run typecheck -w backend"
   },

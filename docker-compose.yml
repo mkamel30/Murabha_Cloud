@@ -1,0 +1,63 @@
+﻿version: '3.8'
+
+services:
+  # PostgreSQL Primary Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: murabha_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-murabha}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Murabha@Cloud2026!}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-murabha}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Cloud Backend API Service
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: murabha_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-Murabha@Cloud2026!}
+      DB_NAME: ${DB_NAME:-murabha}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-murabha_jwt_access_secret_cloud_enterprise_2026_change_in_prod!}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-murabha_jwt_refresh_secret_cloud_enterprise_2026_change_in_prod!}
+      COOKIE_SECRET: ${COOKIE_SECRET:-murabha_cookie_secret_super_secure_vault_2026!}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+    ports:
+      - "3000:3000"
+
+  # Frontend Web UI (Nginx SPA Reverse Proxy)
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: murabha_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:
+    driver: local

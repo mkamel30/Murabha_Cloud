@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { addMonths as dateFnsAddMonths } from 'date-fns';
 
 export function generateReceiptNumber(prefix: string = 'RCP'): string {
   const uuidPart = uuidv4().split('-')[0].toUpperCase();
@@ -12,9 +13,7 @@ export function generateBKCode(): string {
 }
 
 export function addMonths(date: Date, months: number): Date {
-  const result = new Date(date);
-  result.setMonth(result.getMonth() + months);
-  return result;
+  return dateFnsAddMonths(date, months);
 }
 
 export function formatCurrency(amount: number, locale: string = 'ar-EG'): string {

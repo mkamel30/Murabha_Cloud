@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules
 **/node_modules
 
@@ -30,17 +30,24 @@ npm-debug.log*
 
 # Environment Variables
 .env
-.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
 
 # OS Files
 .DS_Store
 Thumbs.db
 
-# VS Code
+# VS Code & IDEs
 .vscode/
 .history/
+.idea/
 
-# GSD / Antigravity
+# Planning & Internal agent notes (excluded from public repo)
+TASKS.md
+tasks.md
 .planning/
 agent.md
 UI-REVIEW.md
