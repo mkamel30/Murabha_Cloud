@@ -137,7 +137,7 @@ export default function HQDashboard() {
       {/* Cross-Branch Benchmark Comparison Table */}
       {stats.branchBenchmarks && stats.branchBenchmarks.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
             <div>
               <h3 className="font-bold text-slate-800 text-base">مقارنة أداء الفروع (Branch Performance Benchmark)</h3>
               <p className="text-xs text-slate-400 mt-0.5">مرتبة حسب أعلى نسبة تحصيل وكفاءة تحصيل المديونيات</p>

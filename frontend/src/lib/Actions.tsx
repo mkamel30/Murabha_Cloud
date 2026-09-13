@@ -98,7 +98,7 @@ export function DangerButton({ children, onClick, type, disabled, className, siz
 
 export function Toolbar({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+    <div className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3 flex-wrap">
       {children}
     </div>
   );
@@ -121,7 +121,7 @@ export function PageHeader({
         <h1 className="text-xl font-bold text-[#0A2472]">{title}</h1>
         {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {children}
         {actions}
       </div>

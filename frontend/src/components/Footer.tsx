@@ -147,8 +147,8 @@ export function Footer({ autoBackup = false, onBackupClick }: FooterProps) {
               <span>تحديث متاح</span>
             </button>
           )}
-          <span className={`text-slate-300 transition-colors duration-300 ${hasUpdate ? 'text-amber-500 font-bold' : ''}`}>
-            V.{__APP_VERSION__}
+          <span className={`text-slate-400 font-mono text-[11px] transition-colors duration-300 ${hasUpdate ? 'text-amber-500 font-bold' : ''}`}>
+            {__APP_VERSION__}
           </span>
         </div>
       </div>
