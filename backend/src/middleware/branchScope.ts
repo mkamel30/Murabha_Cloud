@@ -15,6 +15,13 @@ export function branchScopeMiddleware(req: Request, res: Response, next: NextFun
     if (!userBranchId) {
       return res.status(403).json({ error: 'حساب المستخدم غير مرتبط بأي فرع فعال' });
     }
+
+    // Anti-BOLA / IDOR: Check if non-HQ user is attempting to pass a different branchId header/param
+    const requestedBranch = (req.headers['x-branch-id'] as string) || (req.query.branchId as string);
+    if (requestedBranch && requestedBranch !== userBranchId) {
+      return res.status(403).json({ error: 'غير مصرح لك بالوصول إلى بيانات فرع آخر (Access Denied)' });
+    }
+
     req.branchId = userBranchId;
   } else {
     // HQ user: can specify branch via header or query, or see all

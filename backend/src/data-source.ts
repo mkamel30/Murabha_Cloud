@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import path from 'path';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { Branch, User, Customer, MachineSale, Installment, Payment, FollowUp, AuditLog } from './entities/index.js';
 import { config } from 'dotenv';
@@ -62,12 +63,28 @@ export function createOracleDataSourceOptions(cfg?: OracleConfig): DataSourceOpt
   };
 }
 
-// Active connection
-const activeType = process.env.DB_TYPE || 'postgres';
+export function createSqliteDataSourceOptions(databasePath?: string): DataSourceOptions {
+  return {
+    type: 'better-sqlite3',
+    database: databasePath || process.env.SQLITE_DB_PATH || path.resolve(process.cwd(), 'murabha_cloud_test.db'),
+    synchronize: true,
+    logging: false,
+    entities,
+  };
+}
 
-export const AppDataSource = new DataSource(
-  activeType === 'oracle' ? createOracleDataSourceOptions() : createPostgresDataSourceOptions()
-);
+export function getDataSourceOptions(): DataSourceOptions {
+  const activeType = process.env.DB_TYPE || 'postgres';
+  if (activeType === 'oracle') return createOracleDataSourceOptions();
+  if (activeType === 'sqlite') return createSqliteDataSourceOptions();
+  return createPostgresDataSourceOptions();
+}
+
+export let AppDataSource = new DataSource(getDataSourceOptions());
+
+export function setAppDataSource(ds: DataSource) {
+  AppDataSource = ds;
+}
 
 export async function initializeDatabase(): Promise<DataSource> {
   if (!AppDataSource.isInitialized) {

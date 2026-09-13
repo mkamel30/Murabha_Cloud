@@ -190,20 +190,24 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// Initialize Database & Seed
-(async () => {
-  try {
-    await initializeDatabase();
-    await ensureInitialSeed();
-  } catch (err: any) {
-    console.error('❌ Failed to initialize database:', err?.message || err);
-    console.warn('⚠️ Server will still listen for requests, but database queries may fail until connection is ready.');
-  }
-})();
+// Initialize Database & Seed when started directly as main entry
+const isDirectRun = process.argv[1] && (process.argv[1].endsWith('index.ts') || process.argv[1].endsWith('index.mjs') || process.argv[1].endsWith('index.js'));
 
-app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`🚀 Murabha Cloud Backend running on port ${PORT}`);
-  console.log(`🌐 Ready for cloud deployment`);
-});
+if (isDirectRun && process.env.NODE_ENV !== 'test') {
+  (async () => {
+    try {
+      await initializeDatabase();
+      await ensureInitialSeed();
+    } catch (err: any) {
+      console.error('❌ Failed to initialize database:', err?.message || err);
+      console.warn('⚠️ Server will still listen for requests, but database queries may fail until connection is ready.');
+    }
+  })();
+
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`🚀 Murabha Cloud Backend running on port ${PORT}`);
+    console.log(`🌐 Ready for cloud deployment`);
+  });
+}
 
 export default app;
