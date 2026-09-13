@@ -4,7 +4,7 @@ import { useToast } from '../lib/toast';
 import { LoadingScreen } from '../lib/Spinner';
 import { Modal } from '../lib/Modal';
 import { PrimaryButton, SecondaryButton, PageHeader } from '../lib/Actions';
-import { Building2, Plus, Phone, MapPin, ToggleLeft, ToggleRight, Edit2, Trash2 } from 'lucide-react';
+import { Building2, Plus, Phone, MapPin, ToggleLeft, ToggleRight, Edit2, Trash2, Shield } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
@@ -134,11 +134,20 @@ export default function BranchesManagement({ embedded = false }: { embedded?: bo
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0A2472] flex items-center justify-center font-bold">
-                  <Building2 className="w-5 h-5" />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
+                  b.code === 'HQ' ? 'bg-purple-100 text-purple-700' : 'bg-blue-50 text-[#0A2472]'
+                }`}>
+                  {b.code === 'HQ' ? <Shield className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-800 text-base">{b.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-800 text-base">{b.name}</h3>
+                    {b.code === 'HQ' && (
+                      <span className="text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-md">
+                        مقر إداري
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
                     {b.code}
                   </span>
@@ -149,25 +158,27 @@ export default function BranchesManagement({ embedded = false }: { embedded?: bo
                 <button
                   onClick={() => handleOpenEdit(b)}
                   className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100"
-                  title="تعديل الفرع"
+                  title="تعديل البيانات"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => handleToggleActive(b)}
-                  className={`p-1.5 rounded-lg ${b.isActive ? 'text-emerald-600 hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-100'}`}
-                  title={b.isActive ? 'إيقاف الفرع' : 'تفعيل الفرع'}
-                >
-                  {b.isActive ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
-                </button>
                 {b.code !== 'HQ' && (
-                  <button
-                    onClick={() => handleDeleteBranch(b)}
-                    className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
-                    title="حذف الفرع"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleToggleActive(b)}
+                      className={`p-1.5 rounded-lg ${b.isActive ? 'text-emerald-600 hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-100'}`}
+                      title={b.isActive ? 'إيقاف الفرع' : 'تفعيل الفرع'}
+                    >
+                      {b.isActive ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteBranch(b)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                      title="حذف الفرع"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -187,21 +198,35 @@ export default function BranchesManagement({ embedded = false }: { embedded?: bo
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100 text-center">
-              <div className="bg-slate-50 p-2.5 rounded-xl">
-                <span className="text-[11px] text-slate-400 block mb-1">العملاء</span>
-                <span className="text-sm font-bold text-slate-700">{b.customersCount || 0}</span>
+            {b.code === 'HQ' ? (
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                <div className="bg-blue-50/70 p-2.5 rounded-xl text-center border border-blue-100">
+                  <span className="text-[11px] text-[#0A2472] block mb-0.5 font-bold">فريق الإدارة العامة والمشرفين</span>
+                  <span className="text-sm font-extrabold text-[#0A2472]">{b.usersCount || 1} مسؤولين</span>
+                </div>
+                <div className="p-2 bg-slate-50 rounded-lg text-[11px] text-slate-500 text-center leading-relaxed">
+                  🏛️ مقر إداري وتنظيمي مركزي — غير مخصص للعمليات والمبيعات المباشرة
+                </div>
               </div>
-              <div className="bg-slate-50 p-2.5 rounded-xl">
-                <span className="text-[11px] text-slate-400 block mb-1">الموظفين</span>
-                <span className="text-sm font-bold text-slate-700">{b.usersCount || 0}</span>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100 text-center">
+                  <div className="bg-slate-50 p-2.5 rounded-xl">
+                    <span className="text-[11px] text-slate-400 block mb-1">العملاء</span>
+                    <span className="text-sm font-bold text-slate-700">{b.customersCount || 0}</span>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-xl">
+                    <span className="text-[11px] text-slate-400 block mb-1">الموظفين</span>
+                    <span className="text-sm font-bold text-slate-700">{b.usersCount || 0}</span>
+                  </div>
+                </div>
 
-            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span className="text-slate-500">إجمالي المبيعات:</span>
-              <span className="font-bold text-[#0A2472]">{formatCurrency(b.totalSales || 0)}</span>
-            </div>
+                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <span className="text-slate-500">إجمالي المبيعات:</span>
+                  <span className="font-bold text-[#0A2472]">{formatCurrency(b.totalSales || 0)}</span>
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>

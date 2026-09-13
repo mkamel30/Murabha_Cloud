@@ -54,6 +54,7 @@ router.get('/', async (req: Request, res: Response) => {
 
         return {
           ...b,
+          isOperational: b.code !== 'HQ',
           usersCount,
           customersCount,
           totalSales: Number(salesStats?.totalSales || 0),

@@ -18,6 +18,7 @@ interface AuthContextType {
   isHQ: boolean;
   branches: any[];
   activeBranches: any[];
+  operationalBranches: any[];
   selectedBranchId: string;
   setSelectedBranchId: (branchId: string) => void;
   refreshBranches: () => Promise<void>;
@@ -50,11 +51,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await branchesApi.getAll();
       setBranches(data);
 
-      // Check if selectedBranchId is still active
+      // Check if selectedBranchId is still active and operational (not HQ)
       const currentSelected = localStorage.getItem('murabha_selected_branch_id');
       if (currentSelected && currentSelected !== 'ALL') {
         const branchObj = data.find((b: any) => b.id === currentSelected);
-        if (!branchObj || branchObj.isActive === false) {
+        if (!branchObj || branchObj.isActive === false || branchObj.code === 'HQ') {
           setSelectedBranchIdState('ALL');
           localStorage.setItem('murabha_selected_branch_id', 'ALL');
         }
@@ -120,6 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const activeBranches = branches.filter((b: any) => b.isActive !== false);
+  const operationalBranches = branches.filter((b: any) => b.code !== 'HQ' && b.isActive !== false);
 
   return (
     <AuthContext.Provider
@@ -130,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isHQ,
         branches,
         activeBranches,
+        operationalBranches,
         selectedBranchId,
         setSelectedBranchId,
         refreshBranches,

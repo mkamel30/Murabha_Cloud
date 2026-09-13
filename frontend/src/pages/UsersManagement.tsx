@@ -4,7 +4,7 @@ import { useToast } from '../lib/toast';
 import { LoadingScreen } from '../lib/Spinner';
 import { Modal } from '../lib/Modal';
 import { PrimaryButton, SecondaryButton, PageHeader } from '../lib/Actions';
-import { User, Plus, Key, Building2, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
+import { User, Plus, Key, Building2, CheckCircle2, XCircle, Trash2, ShieldCheck } from 'lucide-react';
 import { formatDate } from '../lib/utils';
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
@@ -284,22 +284,29 @@ export default function UsersManagement({ embedded = false }: { embedded?: boole
             </select>
           </div>
 
-          {!['SUPER_ADMIN', 'HQ_MANAGER', 'HQ_ACCOUNTANT'].includes(form.role) && (
+          {!['SUPER_ADMIN', 'HQ_MANAGER', 'HQ_ACCOUNTANT'].includes(form.role) ? (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">الفرع التابع له</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">فرع التشغيل التابع له</label>
               <select
                 required
                 value={form.branchId}
                 onChange={(e) => setForm({ ...form, branchId: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg text-sm"
               >
-                <option value="">-- اختر الفرع --</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({b.code})
-                  </option>
-                ))}
+                <option value="">-- اختر فرع التشغيل --</option>
+                {branches
+                  .filter((b) => b.code !== 'HQ' && b.isActive !== false)
+                  .map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.code})
+                    </option>
+                  ))}
               </select>
+            </div>
+          ) : (
+            <div className="p-3 bg-blue-50/70 border border-blue-200/70 rounded-xl text-xs text-[#0A2472] flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#0A2472] shrink-0" />
+              <span>هذا المستخدم يتبع <strong>الإدارة العامة (المقر الرئيسي)</strong> ويمتلك صلاحيات مركزية، ولا يرتبط بفرع تشغيلي محدد.</span>
             </div>
           )}
 

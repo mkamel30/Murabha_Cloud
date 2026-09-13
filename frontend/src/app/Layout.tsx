@@ -42,7 +42,7 @@ export default function Layout() {
   });
 
   const location = useLocation();
-  const { user, isHQ, activeBranches, selectedBranchId, setSelectedBranchId, logout } = useAuth();
+  const { user, isHQ, operationalBranches, selectedBranchId, setSelectedBranchId, logout } = useAuth();
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const canManageUsers = isSuperAdmin || user?.role === 'HQ_MANAGER';
@@ -369,7 +369,7 @@ export default function Layout() {
             </button>
 
             {/* Branch Filter Switcher (HQ) */}
-            {isHQ && activeBranches.length > 0 && (
+            {isHQ && operationalBranches.length > 0 && (
               <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-50 border border-slate-200/80 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs shadow-2xs">
                 <Filter size={13} className="text-slate-400 shrink-0" />
                 <span className="text-slate-500 font-semibold hidden md:inline shrink-0">عرض فرع:</span>
@@ -378,8 +378,8 @@ export default function Layout() {
                   onChange={(e) => setSelectedBranchId(e.target.value)}
                   className="bg-transparent font-bold text-[#0A2472] focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[180px] md:max-w-[220px] truncate text-xs"
                 >
-                  <option value="ALL">🏢 كل الفروع (HQ)</option>
-                  {activeBranches.map((b) => (
+                  <option value="ALL">🏢 جميع الفروع</option>
+                  {operationalBranches.map((b) => (
                     <option key={b.id} value={b.id}>
                       📍 {b.name}
                     </option>
