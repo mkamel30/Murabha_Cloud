@@ -10,7 +10,7 @@ const paymentRepo = new PaymentRepository();
 const customerRepo = new CustomerRepository();
 
 export class SaleService {
-  async getAll(query?: { customerId?: string; status?: string; saleType?: string; startDate?: Date; endDate?: Date; page?: number; limit?: number }) {
+  async getAll(query?: { customerId?: string; status?: string; saleType?: string; startDate?: Date; endDate?: Date; page?: number; limit?: number; branchId?: string }) {
     return saleRepo.findAll(query);
   }
 
@@ -22,7 +22,7 @@ export class SaleService {
     return sale;
   }
 
-  async create(data: SaleInput) {
+  async create(data: SaleInput, branchId?: string) {
     const customer = await customerRepo.findById(data.customerId);
     if (!customer) {
       const error = new Error('العميل غير موجود') as Error & { statusCode: number };
@@ -129,6 +129,12 @@ export class SaleService {
           status: 'ACTIVE',
         },
       });
+
+      if (branchId) {
+        try {
+          await tx.$executeRawUnsafe(`UPDATE MachineSale SET branchId = '${branchId}' WHERE id = '${sale.id}'`);
+        } catch (_) {}
+      }
 
       // 2. Create Installments (Agreement: Total - Internal Fixed Down Payment)
       if (data.saleType === 'INSTALLMENT' && months > 0) {

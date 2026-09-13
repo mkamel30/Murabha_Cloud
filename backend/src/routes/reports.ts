@@ -10,7 +10,8 @@ router.get('/sales', async (req: Request, res: Response, next: NextFunction) => 
     const result = await reportService.salesReport(
       startDate ? new Date(startDate as string) : undefined,
       endDate ? new Date(endDate as string) : undefined,
-      saleType as string
+      saleType as string,
+      req.branchId || undefined
     );
     res.json(result);
   } catch (error) {
@@ -25,7 +26,8 @@ router.get('/collections', async (req: Request, res: Response, next: NextFunctio
       startDate ? new Date(startDate as string) : undefined,
       endDate ? new Date(endDate as string) : undefined,
       paymentType as string,
-      paymentPlace as string
+      paymentPlace as string,
+      req.branchId || undefined
     );
     res.json(result);
   } catch (error) {
@@ -38,7 +40,8 @@ router.get('/overdue', async (req: Request, res: Response, next: NextFunction) =
     const { startDate, endDate } = req.query;
     const result = await reportService.overdueReport(
       startDate ? new Date(startDate as string) : undefined,
-      endDate ? new Date(endDate as string) : undefined
+      endDate ? new Date(endDate as string) : undefined,
+      req.branchId || undefined
     );
     res.json(result);
   } catch (error) {

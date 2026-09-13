@@ -12,7 +12,7 @@ async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
 }
 
 export class DashboardService {
-  async getStats() {
+  async getStats(branchId?: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -20,6 +20,31 @@ export class DashboardService {
 
     const todayStart = startOfDay(today);
     const todayEnd = endOfDay(today);
+
+    let branchSaleIds: string[] | null = null;
+    let branchCustomerIds: string[] | null = null;
+    if (branchId && branchId !== 'ALL') {
+      try {
+        const sales = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM MachineSale WHERE branchId = '${branchId}'`
+        );
+        branchSaleIds = sales.map(s => s.id);
+        const customers = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM Customer WHERE branchId = '${branchId}'`
+        );
+        branchCustomerIds = customers.map(c => c.id);
+      } catch (_) {}
+    }
+
+    const saleFilter = branchSaleIds !== null 
+      ? { id: { in: branchSaleIds.length > 0 ? branchSaleIds : ['__NONE__'] } } 
+      : {};
+    const saleRelationFilter = branchSaleIds !== null 
+      ? { saleId: { in: branchSaleIds.length > 0 ? branchSaleIds : ['__NONE__'] } } 
+      : {};
+    const customerFilter = branchCustomerIds !== null 
+      ? { id: { in: branchCustomerIds.length > 0 ? branchCustomerIds : ['__NONE__'] } } 
+      : {};
 
     // Each query is individually wrapped so a single failure won't crash the dashboard
     const [
@@ -38,7 +63,8 @@ export class DashboardService {
       safe(prisma.payment.findMany({
         where: { 
           paidAt: { gte: todayStart, lte: todayEnd },
-          sale: { status: { not: 'VOIDED' } }
+          sale: { status: { not: 'VOIDED' } },
+          ...saleRelationFilter,
         },
         include: { sale: { include: { customer: true } } },
       }), []),
@@ -46,32 +72,33 @@ export class DashboardService {
         where: { 
           isPaid: false, 
           dueDate: { lt: today },
-          sale: { status: 'ACTIVE' }
+          sale: { status: 'ACTIVE' },
+          ...saleRelationFilter,
         },
         include: { sale: { include: { customer: true } } },
       }), []),
       safe(prisma.machineSale.aggregate({
-        where: { saleType: 'CASH', status: { in: ['ACTIVE', 'COMPLETED'] } },
+        where: { saleType: 'CASH', status: { in: ['ACTIVE', 'COMPLETED'] }, ...saleFilter },
         _sum: { totalPrice: true },
       }), { _sum: { totalPrice: null }, _count: 0, _avg: { totalPrice: null }, _min: { totalPrice: null }, _max: { totalPrice: null } } as any),
       safe(prisma.machineSale.aggregate({
-        where: { saleType: 'INSTALLMENT', status: { in: ['ACTIVE', 'COMPLETED'] } },
+        where: { saleType: 'INSTALLMENT', status: { in: ['ACTIVE', 'COMPLETED'] }, ...saleFilter },
         _sum: { totalPrice: true },
       }), { _sum: { totalPrice: null }, _count: 0, _avg: { totalPrice: null }, _min: { totalPrice: null }, _max: { totalPrice: null } } as any),
       safe(prisma.machineSale.count({
-        where: { status: { in: ['ACTIVE', 'COMPLETED'] } },
+        where: { status: { in: ['ACTIVE', 'COMPLETED'] }, ...saleFilter },
       }), 0),
       safe(prisma.payment.aggregate({ 
-        where: { sale: { status: { not: 'VOIDED' } } },
+        where: { sale: { status: { not: 'VOIDED' } }, ...saleRelationFilter },
         _sum: { amount: true } 
       }), { _sum: { amount: null }, _count: 0, _avg: { amount: null }, _min: { amount: null }, _max: { amount: null } } as any),
       safe(prisma.machineSale.aggregate({
-        where: { status: { in: ['ACTIVE', 'COMPLETED'] } },
+        where: { status: { in: ['ACTIVE', 'COMPLETED'] }, ...saleFilter },
         _sum: { remainingAmount: true },
       }), { _sum: { remainingAmount: null }, _count: 0, _avg: { remainingAmount: null }, _min: { remainingAmount: null }, _max: { remainingAmount: null } } as any),
-      safe(prisma.customer.count(), 0),
+      safe(prisma.customer.count({ where: customerFilter }), 0),
       safe(prisma.payment.findMany({
-        where: { sale: { status: { not: 'VOIDED' } } },
+        where: { sale: { status: { not: 'VOIDED' } }, ...saleRelationFilter },
         orderBy: { paidAt: 'desc' }, take: 10,
         include: { sale: { include: { customer: true } } },
       }), []),
@@ -79,7 +106,8 @@ export class DashboardService {
         where: { 
           isPaid: false, 
           dueDate: { gte: today, lte: tomorrow },
-          sale: { status: 'ACTIVE' }
+          sale: { status: 'ACTIVE' },
+          ...saleRelationFilter,
         },
         include: { sale: { include: { customer: true } } },
         orderBy: { dueDate: 'asc' }, take: 10,
@@ -88,7 +116,8 @@ export class DashboardService {
         where: {
           isPaid: false,
           dueDate: { gte: todayStart, lte: new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999) },
-          sale: { status: 'ACTIVE' }
+          sale: { status: 'ACTIVE' },
+          ...saleRelationFilter,
         },
         include: { sale: { include: { customer: true } } },
       }), [])

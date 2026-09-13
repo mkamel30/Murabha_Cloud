@@ -392,6 +392,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       isPaid: isPaid === 'true' ? true : isPaid === 'false' ? false : undefined,
       startDate: startDate ? new Date(startDate as string) : undefined,
       endDate: endDate ? new Date(endDate as string) : undefined,
+      branchId: req.branchId || undefined,
     });
     res.json(installments);
   } catch (error) {
@@ -401,7 +402,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 router.get('/overdue', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const overdue = await installmentRepo.findOverdue();
+    const overdue = await installmentRepo.findOverdue(req.branchId || undefined);
     res.json(overdue);
   } catch (error) {
     next(error);

@@ -27,6 +27,14 @@ if (prisma) {
         console.error('[Prisma] ⚠️ Failed to enable WAL mode:', walErr);
       }
       
+      // Auto-run migrations
+      try {
+        const { runMigrations } = await import('../migrator.js');
+        await runMigrations(prisma);
+      } catch (migErr) {
+        console.error('[Prisma] ⚠️ Migrations error:', migErr);
+      }
+      
       // Quick sanity check: count tables
       try {
         const tables = await prisma.$queryRawUnsafe<any[]>(

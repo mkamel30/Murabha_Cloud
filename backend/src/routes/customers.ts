@@ -26,7 +26,7 @@ function validateUpdateCustomer(data: unknown) {
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const search = req.query.search as string | undefined;
-    const customers = await customerService.getAll(search);
+    const customers = await customerService.getAll(search, req.branchId || undefined);
     res.json(customers);
   } catch (error) {
     next(error);
@@ -35,7 +35,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 router.get('/count', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const count = await customerService.getCount();
+    const count = await customerService.getCount(req.branchId || undefined);
     res.json({ count });
   } catch (error) {
     next(error);
@@ -59,7 +59,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = validateCustomer(req.body);
-    const customer = await customerService.create(data);
+    const customer = await customerService.create(data, req.branchId || req.body.branchId || undefined);
     res.status(201).json(customer);
   } catch (error) {
     next(error);

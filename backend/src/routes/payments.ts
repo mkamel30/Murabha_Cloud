@@ -14,6 +14,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       saleId: saleId as string | undefined,
       startDate: startDate ? new Date(startDate as string) : undefined,
       endDate: endDate ? new Date(endDate as string) : undefined,
+      branchId: req.branchId || undefined,
     });
     res.json(payments);
   } catch (error) {

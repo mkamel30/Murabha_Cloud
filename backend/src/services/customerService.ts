@@ -7,8 +7,8 @@ import prisma from '../lib/prisma.js';
 const customerRepo = new CustomerRepository();
 
 export class CustomerService {
-  async getAll(search?: string) {
-    return customerRepo.findAll({ search });
+  async getAll(search?: string, branchId?: string) {
+    return customerRepo.findAll({ search, branchId });
   }
 
   async getById(id: string) {
@@ -19,14 +19,14 @@ export class CustomerService {
     return customer;
   }
 
-  async create(data: CustomerInput) {
+  async create(data: CustomerInput, branchId?: string) {
     const existing = await customerRepo.findByBkCodeAndType(data.bkCode, data.customerType);
     if (existing) {
       const error = new Error('رقم العميل موجود بالفعل لهذا النوع') as Error & { statusCode: number };
       error.statusCode = 400;
       throw error;
     }
-    const createData: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> = {
+    const createData: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> & { branchId?: string } = {
       bkCode: data.bkCode,
       customerType: data.customerType,
       name: data.name,
@@ -34,6 +34,7 @@ export class CustomerService {
       address: data.address || null,
       notes: data.notes || null,
       department: data.department || null,
+      branchId,
     };
     return customerRepo.create(createData);
   }
@@ -105,8 +106,8 @@ export class CustomerService {
     });
   }
 
-  async getCount() {
-    return customerRepo.count();
+  async getCount(branchId?: string) {
+    return customerRepo.count(branchId);
   }
 
   generateBKCode() {

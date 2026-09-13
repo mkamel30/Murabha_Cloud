@@ -2,8 +2,21 @@ import prisma from '../lib/prisma.js';
 import { startOfDay, endOfDay } from '../utils/helpers.js';
 import type { Prisma } from '@prisma/client';
 
+async function getBranchSaleIds(branchId?: string): Promise<string[] | null> {
+  if (!branchId || branchId === 'ALL') return null;
+  try {
+    const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+      `SELECT id FROM MachineSale WHERE branchId = '${branchId}'`
+    );
+    return rows.map(r => r.id);
+  } catch (_) {
+    return null;
+  }
+}
+
 export class ReportService {
-  async salesReport(startDate?: Date, endDate?: Date, saleType?: string) {
+  async salesReport(startDate?: Date, endDate?: Date, saleType?: string, branchId?: string) {
+    const branchSaleIds = await getBranchSaleIds(branchId);
     const where: Prisma.MachineSaleWhereInput = { status: { not: 'VOIDED' } };
     if (startDate || endDate) {
       where.saleDate = {};
@@ -12,6 +25,9 @@ export class ReportService {
     }
     if (saleType) {
       where.saleType = saleType as any;
+    }
+    if (branchSaleIds !== null) {
+      where.id = { in: branchSaleIds.length > 0 ? branchSaleIds : ['__NONE__'] };
     }
 
     const sales = await prisma.machineSale.findMany({
@@ -32,7 +48,8 @@ export class ReportService {
     return { sales, summary };
   }
 
-  async collectionsReport(startDate?: Date, endDate?: Date, paymentType?: string, paymentPlace?: string) {
+  async collectionsReport(startDate?: Date, endDate?: Date, paymentType?: string, paymentPlace?: string, branchId?: string) {
+    const branchSaleIds = await getBranchSaleIds(branchId);
     const where: Prisma.PaymentWhereInput = {
       sale: { status: { not: 'VOIDED' } }
     };
@@ -46,6 +63,9 @@ export class ReportService {
     }
     if (paymentPlace) {
       where.paymentPlace = paymentPlace;
+    }
+    if (branchSaleIds !== null) {
+      where.saleId = { in: branchSaleIds.length > 0 ? branchSaleIds : ['__NONE__'] };
     }
 
     const payments = await prisma.payment.findMany({
@@ -65,7 +85,8 @@ export class ReportService {
     return { payments, summary };
   }
 
-  async overdueReport(startDate?: Date, endDate?: Date) {
+  async overdueReport(startDate?: Date, endDate?: Date, branchId?: string) {
+    const branchSaleIds = await getBranchSaleIds(branchId);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -80,6 +101,9 @@ export class ReportService {
       if (endDate) where.dueDate.lte = endOfDay(endDate);
     } else {
       where.dueDate = { lt: today };
+    }
+    if (branchSaleIds !== null) {
+      where.saleId = { in: branchSaleIds.length > 0 ? branchSaleIds : ['__NONE__'] };
     }
 
     const overdue = await prisma.installment.findMany({

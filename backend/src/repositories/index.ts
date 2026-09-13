@@ -2,10 +2,20 @@ import prisma from '../lib/prisma.js';
 import type { Customer, MachineSale, Installment, Payment, FollowUp, Prisma } from '@prisma/client';
 
 export class CustomerRepository {
-  async findAll(query?: { search?: string; page?: number; limit?: number }) {
+  async findAll(query?: { search?: string; page?: number; limit?: number; branchId?: string }) {
     const skip = query?.page && query?.limit ? (query.page - 1) * query.limit : undefined;
     const take = query?.limit ? Number(query.limit) : undefined;
     
+    let matchingIds: string[] | null = null;
+    if (query?.branchId && query.branchId !== 'ALL') {
+      try {
+        const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM Customer WHERE branchId = '${query.branchId}'`
+        );
+        matchingIds = rows.map(r => r.id);
+      } catch (_) {}
+    }
+
     const where: Prisma.CustomerWhereInput = query?.search
       ? {
           OR: [
@@ -16,6 +26,11 @@ export class CustomerRepository {
           ],
         }
       : {};
+
+    if (matchingIds !== null) {
+      where.id = { in: matchingIds.length > 0 ? matchingIds : ['__NONE__'] };
+    }
+
     return prisma.customer.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -52,10 +67,17 @@ export class CustomerRepository {
     });
   }
 
-  async create(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>) {
-    return prisma.customer.create({
-      data,
+  async create(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> & { branchId?: string }) {
+    const { branchId, ...rest } = data;
+    const customer = await prisma.customer.create({
+      data: rest,
     });
+    if (branchId) {
+      try {
+        await prisma.$executeRawUnsafe(`UPDATE Customer SET branchId = '${branchId}' WHERE id = '${customer.id}'`);
+      } catch (_) {}
+    }
+    return customer;
   }
 
   async update(id: string, data: Partial<Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>>) {
@@ -69,15 +91,33 @@ export class CustomerRepository {
     return prisma.customer.delete({ where: { id } });
   }
 
-  async count() {
+  async count(branchId?: string) {
+    if (branchId && branchId !== 'ALL') {
+      try {
+        const res = await prisma.$queryRawUnsafe<{ count: number }[]>(
+          `SELECT count(*) as count FROM Customer WHERE branchId = '${branchId}'`
+        );
+        return Number(res[0]?.count || 0);
+      } catch (_) {}
+    }
     return prisma.customer.count();
   }
 }
 
 export class SaleRepository {
-  async findAll(query?: { customerId?: string; status?: string; saleType?: string; startDate?: Date; endDate?: Date; page?: number; limit?: number }) {
+  async findAll(query?: { customerId?: string; status?: string; saleType?: string; startDate?: Date; endDate?: Date; page?: number; limit?: number; branchId?: string }) {
     const skip = query?.page && query?.limit ? (query.page - 1) * query.limit : undefined;
     const take = query?.limit ? Number(query.limit) : undefined;
+
+    let matchingIds: string[] | null = null;
+    if (query?.branchId && query.branchId !== 'ALL') {
+      try {
+        const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM MachineSale WHERE branchId = '${query.branchId}'`
+        );
+        matchingIds = rows.map(r => r.id);
+      } catch (_) {}
+    }
 
     const where: Prisma.MachineSaleWhereInput = {};
     if (query?.customerId) where.customerId = query.customerId;
@@ -88,6 +128,10 @@ export class SaleRepository {
       if (query.startDate) where.saleDate.gte = query.startDate;
       if (query.endDate) where.saleDate.lte = query.endDate;
     }
+    if (matchingIds !== null) {
+      where.id = { in: matchingIds.length > 0 ? matchingIds : ['__NONE__'] };
+    }
+
     return prisma.machineSale.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -132,10 +176,17 @@ export class SaleRepository {
     });
   }
 
-  async create(data: Omit<MachineSale, 'id' | 'createdAt' | 'updatedAt'>) {
-    return prisma.machineSale.create({
-      data,
+  async create(data: Omit<MachineSale, 'id' | 'createdAt' | 'updatedAt'> & { branchId?: string }) {
+    const { branchId, ...rest } = data;
+    const sale = await prisma.machineSale.create({
+      data: rest,
     });
+    if (branchId) {
+      try {
+        await prisma.$executeRawUnsafe(`UPDATE MachineSale SET branchId = '${branchId}' WHERE id = '${sale.id}'`);
+      } catch (_) {}
+    }
+    return sale;
   }
 
   async update(id: string, data: Partial<Omit<MachineSale, 'id' | 'createdAt' | 'updatedAt'>>) {
@@ -162,7 +213,17 @@ export class SaleRepository {
 }
 
 export class InstallmentRepository {
-  async findAll(query?: { saleId?: string; isPaid?: boolean; startDate?: Date; endDate?: Date }) {
+  async findAll(query?: { saleId?: string; isPaid?: boolean; startDate?: Date; endDate?: Date; branchId?: string }) {
+    let matchingSaleIds: string[] | null = null;
+    if (query?.branchId && query.branchId !== 'ALL') {
+      try {
+        const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM MachineSale WHERE branchId = '${query.branchId}'`
+        );
+        matchingSaleIds = rows.map(r => r.id);
+      } catch (_) {}
+    }
+
     const where: Prisma.InstallmentWhereInput = {};
     if (query?.saleId) where.saleId = query.saleId;
     if (query?.isPaid !== undefined) where.isPaid = query.isPaid;
@@ -171,6 +232,10 @@ export class InstallmentRepository {
       if (query.startDate) where.dueDate.gte = query.startDate;
       if (query.endDate) where.dueDate.lte = query.endDate;
     }
+    if (matchingSaleIds !== null) {
+      where.saleId = { in: matchingSaleIds.length > 0 ? matchingSaleIds : ['__NONE__'] };
+    }
+
     return prisma.installment.findMany({
       where,
       orderBy: { dueDate: 'asc' },
@@ -182,15 +247,31 @@ export class InstallmentRepository {
     });
   }
 
-  async findOverdue() {
+  async findOverdue(branchId?: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    let matchingSaleIds: string[] | null = null;
+    if (branchId && branchId !== 'ALL') {
+      try {
+        const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM MachineSale WHERE branchId = '${branchId}'`
+        );
+        matchingSaleIds = rows.map(r => r.id);
+      } catch (_) {}
+    }
+
+    const where: Prisma.InstallmentWhereInput = {
+      isPaid: false,
+      dueDate: { lt: today },
+      sale: { status: 'ACTIVE' },
+    };
+    if (matchingSaleIds !== null) {
+      where.saleId = { in: matchingSaleIds.length > 0 ? matchingSaleIds : ['__NONE__'] };
+    }
+
     return prisma.installment.findMany({
-      where: {
-        isPaid: false,
-        dueDate: { lt: today },
-        sale: { status: 'ACTIVE' },
-      },
+      where,
       orderBy: { dueDate: 'asc' },
       include: {
         sale: {
@@ -229,7 +310,17 @@ export class InstallmentRepository {
 }
 
 export class PaymentRepository {
-  async findAll(query?: { saleId?: string; startDate?: Date; endDate?: Date }) {
+  async findAll(query?: { saleId?: string; startDate?: Date; endDate?: Date; branchId?: string }) {
+    let matchingSaleIds: string[] | null = null;
+    if (query?.branchId && query.branchId !== 'ALL') {
+      try {
+        const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM MachineSale WHERE branchId = '${query.branchId}'`
+        );
+        matchingSaleIds = rows.map(r => r.id);
+      } catch (_) {}
+    }
+
     const where: Prisma.PaymentWhereInput = {};
     if (query?.saleId) where.saleId = query.saleId;
     if (query?.startDate || query?.endDate) {
@@ -237,6 +328,10 @@ export class PaymentRepository {
       if (query.startDate) where.paidAt.gte = query.startDate;
       if (query.endDate) where.paidAt.lte = query.endDate;
     }
+    if (matchingSaleIds !== null) {
+      where.saleId = { in: matchingSaleIds.length > 0 ? matchingSaleIds : ['__NONE__'] };
+    }
+
     return prisma.payment.findMany({
       where,
       orderBy: { paidAt: 'desc' },
@@ -269,10 +364,24 @@ export class PaymentRepository {
 }
 
 export class FollowUpRepository {
-  async findAll(query?: { customerId?: string; isCompleted?: boolean }) {
+  async findAll(query?: { customerId?: string; isCompleted?: boolean; branchId?: string }) {
+    let matchingCustomerIds: string[] | null = null;
+    if (query?.branchId && query.branchId !== 'ALL') {
+      try {
+        const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM Customer WHERE branchId = '${query.branchId}'`
+        );
+        matchingCustomerIds = rows.map(r => r.id);
+      } catch (_) {}
+    }
+
     const where: Prisma.FollowUpWhereInput = {};
     if (query?.customerId) where.customerId = query.customerId;
     if (query?.isCompleted !== undefined) where.isCompleted = query.isCompleted;
+    if (matchingCustomerIds !== null) {
+      where.customerId = { in: matchingCustomerIds.length > 0 ? matchingCustomerIds : ['__NONE__'] };
+    }
+
     return prisma.followUp.findMany({
       where,
       orderBy: { nextFollowUp: 'asc' },
@@ -299,17 +408,33 @@ export class FollowUpRepository {
     return prisma.followUp.delete({ where: { id } });
   }
 
-  async findUpcoming() {
+  async findUpcoming(branchId?: string) {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    let matchingCustomerIds: string[] | null = null;
+    if (branchId && branchId !== 'ALL') {
+      try {
+        const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM Customer WHERE branchId = '${branchId}'`
+        );
+        matchingCustomerIds = rows.map(r => r.id);
+      } catch (_) {}
+    }
+
+    const where: Prisma.FollowUpWhereInput = {
+      isCompleted: false,
+      nextFollowUp: { gte: today, lte: tomorrow },
+    };
+    if (matchingCustomerIds !== null) {
+      where.customerId = { in: matchingCustomerIds.length > 0 ? matchingCustomerIds : ['__NONE__'] };
+    }
+
     return prisma.followUp.findMany({
-      where: {
-        isCompleted: false,
-        nextFollowUp: { gte: today, lte: tomorrow },
-      },
+      where,
       include: { customer: true },
     });
   }

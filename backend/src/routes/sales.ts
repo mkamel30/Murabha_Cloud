@@ -45,6 +45,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       endDate: endDate ? new Date(endDate) : undefined,
       page,
       limit,
+      branchId: req.branchId || undefined,
     });
     res.json(sales);
   } catch (error) {
@@ -64,7 +65,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = validateSale(req.body);
-    const sale = await saleService.create(data);
+    const sale = await saleService.create(data, req.branchId || req.body.branchId || undefined);
     res.status(201).json(sale);
   } catch (error) {
     next(error);

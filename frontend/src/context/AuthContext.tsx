@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi } from '../api/client';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authApi, branchesApi } from '../api/client';
 
 export interface UserProfile {
   id: string;
@@ -16,8 +16,11 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   isHQ: boolean;
+  branches: any[];
+  activeBranches: any[];
   selectedBranchId: string;
   setSelectedBranchId: (branchId: string) => void;
+  refreshBranches: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -30,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : null;
   });
   const [loading, setLoading] = useState(true);
+  const [branches, setBranches] = useState<any[]>([]);
   const [selectedBranchId, setSelectedBranchIdState] = useState<string>(() => {
     return localStorage.getItem('murabha_selected_branch_id') || 'ALL';
   });
@@ -38,6 +42,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedBranchIdState(branchId);
     localStorage.setItem('murabha_selected_branch_id', branchId);
   };
+
+  const isHQ = user ? ['SUPER_ADMIN', 'HQ_MANAGER', 'HQ_ACCOUNTANT'].includes(user.role) : false;
+
+  const refreshBranches = useCallback(async () => {
+    try {
+      const data = await branchesApi.getAll();
+      setBranches(data);
+
+      // Check if selectedBranchId is still active
+      const currentSelected = localStorage.getItem('murabha_selected_branch_id');
+      if (currentSelected && currentSelected !== 'ALL') {
+        const branchObj = data.find((b: any) => b.id === currentSelected);
+        if (!branchObj || branchObj.isActive === false) {
+          setSelectedBranchIdState('ALL');
+          localStorage.setItem('murabha_selected_branch_id', 'ALL');
+        }
+      }
+    } catch (_) {
+      // Ignore background refresh errors
+    }
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -64,6 +89,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      refreshBranches();
+    }
+  }, [user, refreshBranches]);
+
   const login = async (username: string, password: string) => {
     const data = await authApi.login({ username, password });
     localStorage.setItem('murabha_access_token', data.accessToken);
@@ -74,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setSelectedBranchId('ALL');
     }
+    await refreshBranches();
   };
 
   const logout = async () => {
@@ -87,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = '/login';
   };
 
-  const isHQ = user ? ['SUPER_ADMIN', 'HQ_MANAGER', 'HQ_ACCOUNTANT'].includes(user.role) : false;
+  const activeBranches = branches.filter((b: any) => b.isActive !== false);
 
   return (
     <AuthContext.Provider
@@ -96,8 +128,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         isAuthenticated: !!user,
         isHQ,
+        branches,
+        activeBranches,
         selectedBranchId,
         setSelectedBranchId,
+        refreshBranches,
         login,
         logout,
       }}

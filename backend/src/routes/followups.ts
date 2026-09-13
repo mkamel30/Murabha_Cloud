@@ -29,6 +29,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     const followUps = await followUpService.getAll({
       customerId: customerId as string | undefined,
       isCompleted: isCompleted === 'true' ? true : isCompleted === 'false' ? false : undefined,
+      branchId: req.branchId || undefined,
     });
     res.json(followUps);
   } catch (error) {
@@ -38,7 +39,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 router.get('/upcoming', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const upcoming = await followUpService.getUpcoming();
+    const upcoming = await followUpService.getUpcoming(req.branchId || undefined);
     res.json(upcoming);
   } catch (error) {
     next(error);

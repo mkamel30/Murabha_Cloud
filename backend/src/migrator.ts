@@ -44,6 +44,16 @@ const MIGRATIONS: Migration[] = [
     sql: [
       `ALTER TABLE FollowUp ADD COLUMN logs TEXT DEFAULT '[]';`
     ]
+  },
+  {
+    version: '1.0.5',
+    description: 'إضافة دعم عزل وفلترة الفروع للعملاء والمبيعات',
+    sql: [
+      `ALTER TABLE Customer ADD COLUMN branchId TEXT;`,
+      `ALTER TABLE MachineSale ADD COLUMN branchId TEXT;`,
+      `CREATE INDEX IF NOT EXISTS idx_customer_branchId ON Customer(branchId);`,
+      `CREATE INDEX IF NOT EXISTS idx_machinesale_branchId ON MachineSale(branchId);`
+    ]
   }
 ];
 
@@ -92,10 +102,26 @@ export async function runMigrations(prisma: PrismaClient): Promise<void> {
 
     // Run data backfill to link existing records
     await backfillPaymentIds(prisma);
+    await backfillBranchIds(prisma);
 
     console.log('✅ All migrations check completed.');
   } catch (error) {
     console.error('❌ Migration system failed:', error);
+  }
+}
+
+async function backfillBranchIds(prisma: PrismaClient): Promise<void> {
+  try {
+    const defaultBranchId = 'ec3638e9-2d00-4956-93fd-f9c31630fb94'; // "القاهرة-الجيش"
+    await prisma.$executeRawUnsafe(
+      `UPDATE Customer SET branchId = '${defaultBranchId}' WHERE branchId IS NULL OR branchId = '';`
+    );
+    await prisma.$executeRawUnsafe(
+      `UPDATE MachineSale SET branchId = '${defaultBranchId}' WHERE branchId IS NULL OR branchId = '';`
+    );
+    console.log('✅ Backfilled existing customers & sales with active default branch.');
+  } catch (err: any) {
+    // Ignore error if columns don't exist yet
   }
 }
 

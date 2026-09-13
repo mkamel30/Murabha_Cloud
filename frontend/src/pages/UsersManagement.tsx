@@ -16,7 +16,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   BRANCH_DATA_ENTRY: { label: 'مدخل بيانات فرع', color: 'bg-slate-100 text-slate-800' },
 };
 
-export default function UsersManagement() {
+export default function UsersManagement({ embedded = false }: { embedded?: boolean }) {
   const { showToast } = useToast();
   const [users, setUsers] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -113,10 +113,17 @@ export default function UsersManagement() {
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <PageHeader
-          title="إدارة المستخدمين والصلاحيات (RBAC)"
-          description="إدارة حسابات موظفي الفروع والإدارة العامة، وتحديد الصلاحيات وإعادة تعيين كلمات المرور"
-        />
+        {!embedded ? (
+          <PageHeader
+            title="إدارة المستخدمين والصلاحيات (RBAC)"
+            description="إدارة حسابات موظفي الفروع والإدارة العامة، وتحديد الصلاحيات وإعادة تعيين كلمات المرور"
+          />
+        ) : (
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">إدارة المستخدمين والصلاحيات</h3>
+            <p className="text-xs text-slate-500 mt-0.5">إدارة حسابات موظفي الفروع وتحديد الصلاحيات وإعادة تعيين كلمات المرور</p>
+          </div>
+        )}
         <PrimaryButton onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
           <Plus className="w-4 h-4" />
           <span>إضافة مستخدم جديد</span>

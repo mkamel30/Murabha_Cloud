@@ -6,7 +6,7 @@ const dashboardService = new DashboardService();
 
 router.get('/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const stats = await dashboardService.getStats();
+    const stats = await dashboardService.getStats(req.branchId || undefined);
     res.json(stats);
   } catch (error: any) {
     console.error('[Dashboard /stats] CRITICAL ERROR:', error?.message || error);

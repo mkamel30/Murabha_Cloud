@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import logo from '@/assets/logo.png';
 import { NavLink, Outlet } from 'react-router-dom';
 import { ar } from '@/i18n/ar';
@@ -22,18 +22,10 @@ import {
 } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '../context/AuthContext';
-import { branchesApi } from '../api/client';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isHQ, selectedBranchId, setSelectedBranchId, logout } = useAuth();
-  const [branches, setBranches] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (isHQ) {
-      branchesApi.getAll().then(setBranches).catch(() => {});
-    }
-  }, [isHQ]);
+  const { user, isHQ, activeBranches, selectedBranchId, setSelectedBranchId, logout } = useAuth();
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const canManageUsers = isSuperAdmin || user?.role === 'HQ_MANAGER';
@@ -234,7 +226,7 @@ export default function Layout() {
         {/* Top Header */}
         <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm">
           <div className="flex items-center gap-3">
-            {isHQ && branches.length > 0 && (
+            {isHQ && activeBranches.length > 0 && (
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl text-xs">
                 <Filter size={14} className="text-slate-400" />
                 <span className="text-slate-500 font-semibold">عرض فرع:</span>
@@ -244,7 +236,7 @@ export default function Layout() {
                   className="bg-transparent font-bold text-[#0A2472] focus:outline-none cursor-pointer"
                 >
                   <option value="ALL">🏢 كل الفروع (المقر الرئيسي)</option>
-                  {branches.map((b) => (
+                  {activeBranches.map((b) => (
                     <option key={b.id} value={b.id}>
                       📍 {b.name}
                     </option>
@@ -268,7 +260,7 @@ export default function Layout() {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-7xl mx-auto">
-            <Outlet />
+            <Outlet key={selectedBranchId} />
           </div>
         </div>
         

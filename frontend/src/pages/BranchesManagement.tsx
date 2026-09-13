@@ -6,9 +6,11 @@ import { Modal } from '../lib/Modal';
 import { PrimaryButton, SecondaryButton, PageHeader } from '../lib/Actions';
 import { Building2, Plus, Phone, MapPin, ToggleLeft, ToggleRight, Edit2 } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
+import { useAuth } from '../context/AuthContext';
 
-export default function BranchesManagement() {
+export default function BranchesManagement({ embedded = false }: { embedded?: boolean }) {
   const { showToast } = useToast();
+  const { refreshBranches } = useAuth();
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -64,6 +66,7 @@ export default function BranchesManagement() {
         showToast('تم إنشاء الفرع بنجاح', 'success');
       }
       setShowModal(false);
+      await refreshBranches();
       loadBranches();
     } catch (err: any) {
       showToast(err.response?.data?.error || 'حدث خطأ أثناء حفظ الفرع', 'error');
@@ -74,6 +77,7 @@ export default function BranchesManagement() {
     try {
       const res = await branchesApi.toggleActive(b.id);
       showToast(res.message, 'success');
+      await refreshBranches();
       loadBranches();
     } catch (err) {
       showToast('فشل تغيير حالة الفرع', 'error');
@@ -85,10 +89,17 @@ export default function BranchesManagement() {
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <PageHeader
-          title="إدارة الفروع (Branches)"
-          description="إدارة شبكة فروع الشركة، ومتابعة الأداء التشغيلي والمالي لكل فرع بشكل مستقل"
-        />
+        {!embedded ? (
+          <PageHeader
+            title="إدارة الفروع (Branches)"
+            description="إدارة شبكة فروع الشركة، ومتابعة الأداء التشغيلي والمالي لكل فرع بشكل مستقل"
+          />
+        ) : (
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">إدارة فروع الشركة</h3>
+            <p className="text-xs text-slate-500 mt-0.5">إضافة وتعديل فروع الشركة والتحكم في إغلاقها وتحديث بياناتها</p>
+          </div>
+        )}
         <PrimaryButton onClick={handleOpenCreate} className="flex items-center gap-2">
           <Plus className="w-4 h-4" />
           <span>إضافة فرع جديد</span>

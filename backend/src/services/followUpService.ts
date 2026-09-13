@@ -5,7 +5,7 @@ const followUpRepo = new FollowUpRepository();
 const customerRepo = new CustomerRepository();
 
 export class FollowUpService {
-  async getAll(query?: { customerId?: string; isCompleted?: boolean }) {
+  async getAll(query?: { customerId?: string; isCompleted?: boolean; branchId?: string }) {
     return followUpRepo.findAll(query);
   }
 
@@ -73,7 +73,7 @@ export class FollowUpService {
     return followUpRepo.delete(id);
   }
 
-  async getUpcoming() {
-    return followUpRepo.findUpcoming();
+  async getUpcoming(branchId?: string) {
+    return followUpRepo.findUpcoming(branchId);
   }
 }

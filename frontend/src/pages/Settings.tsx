@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { backupApi, adminApi, branchApi, exportApi } from '@/api/client';
+import { backupApi, adminApi, exportApi } from '@/api/client';
 import { PageHeader, PrimaryButton } from '@/lib/Actions';
 import { useToast } from '@/lib/toast';
-import { Settings, Download, Upload, RefreshCw, Trash2, Lock, ShieldCheck, Building2, FileSpreadsheet, BookOpen, ChevronDown, ChevronUp, Database } from 'lucide-react';
+import { Settings, Download, Upload, RefreshCw, Trash2, Lock, ShieldCheck, Building2, Users, FileSpreadsheet, BookOpen, ChevronDown, ChevronUp, Database } from 'lucide-react';
 import OracleMigrationWizard from '@/components/OracleMigrationWizard';
+import BranchesManagement from './BranchesManagement';
+import UsersManagement from './UsersManagement';
 import { useAuth } from '@/context/AuthContext';
 
 interface BackupFile {
@@ -12,8 +14,15 @@ interface BackupFile {
   created: string;
 }
 
+type SettingsTab = 'branches' | 'users' | 'data' | 'guide' | 'oracle';
+
 export default function SettingsPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const canManageUsers = isSuperAdmin || user?.role === 'HQ_MANAGER';
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => canManageUsers ? 'branches' : 'data');
   const [autoBackup, setAutoBackup] = useState(() => {
     const saved = localStorage.getItem('autoBackup');
     return saved === 'true';
@@ -23,12 +32,7 @@ export default function SettingsPage() {
   const [showMfaModal, setShowMfaModal] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [branchName, setBranchName] = useState('');
-  const [savedBranchName, setSavedBranchName] = useState('');
-  const [branchLoading, setBranchLoading] = useState(false);
   const [activeHelpTab, setActiveHelpTab] = useState<string | null>(null);
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'system' | 'data' | 'guide' | 'oracle'>('system');
 
   const toggleHelpTab = (tab: string) => {
     setActiveHelpTab(activeHelpTab === tab ? null : tab);
@@ -43,38 +47,8 @@ export default function SettingsPage() {
     }
   };
 
-  const loadBranchConfig = async () => {
-    try {
-      const config = await branchApi.getConfig();
-      setBranchName(config.branchName || '');
-      setSavedBranchName(config.branchName || '');
-    } catch (err) {
-      console.error('Failed to load branch config:', err);
-    }
-  };
-
-  const handleSaveBranchName = async () => {
-    if (!branchName.trim()) {
-      showToast('يرجى إدخال اسم الفرع', 'error');
-      return;
-    }
-    setBranchLoading(true);
-    try {
-      await branchApi.setConfig(branchName.trim());
-      setSavedBranchName(branchName.trim());
-      showToast('تم حفظ اسم الفرع بنجاح', 'success');
-    } catch (err) {
-      showToast('فشل حفظ اسم الفرع', 'error');
-    } finally {
-      setBranchLoading(false);
-    }
-  };
-
-
-
   useEffect(() => {
     loadBackupFiles();
-    loadBranchConfig();
   }, []);
 
   useEffect(() => {
@@ -155,8 +129,6 @@ export default function SettingsPage() {
     }
   };
 
-
-
   const handleFullExport = async () => {
     setLoading(true);
     try {
@@ -179,28 +151,48 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto pb-12">
-      <PageHeader title="الإعدادات" />
+    <div className="space-y-6 max-w-5xl mx-auto pb-12" dir="rtl">
+      <PageHeader
+        title="إعدادات النظام والإدارة"
+        description="إدارة الفروع، حسابات وصلاحيات المستخدمين، والنسخ الاحتياطي وترحيل البيانات"
+      />
 
       {/* Glassmorphic Tabs Switcher */}
-      <div className="flex p-1.5 bg-slate-100/80 backdrop-blur-md rounded-2xl border border-slate-200/50 gap-2 mb-6">
-        <button
-          type="button"
-          onClick={() => setActiveTab('system')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
-            activeTab === 'system'
-              ? 'bg-[#0A2472] text-white shadow-lg shadow-[#0A2472]/20 scale-[1.02]'
-              : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          <span>الفرع والنظام</span>
-        </button>
+      <div className="flex flex-wrap p-1.5 bg-slate-100/80 backdrop-blur-md rounded-2xl border border-slate-200/50 gap-2 mb-6">
+        {canManageUsers && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('branches')}
+            className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+              activeTab === 'branches'
+                ? 'bg-[#0A2472] text-white shadow-lg shadow-[#0A2472]/20 scale-[1.02]'
+                : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            <span>إدارة الفروع</span>
+          </button>
+        )}
+
+        {canManageUsers && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('users')}
+            className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+              activeTab === 'users'
+                ? 'bg-[#0A2472] text-white shadow-lg shadow-[#0A2472]/20 scale-[1.02]'
+                : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>المستخدمين والصلاحيات</span>
+          </button>
+        )}
 
         <button
           type="button"
           onClick={() => setActiveTab('data')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+          className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
             activeTab === 'data'
               ? 'bg-[#0A2472] text-white shadow-lg shadow-[#0A2472]/20 scale-[1.02]'
               : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
@@ -210,24 +202,11 @@ export default function SettingsPage() {
           <span>النسخ والبيانات</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('guide')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
-            activeTab === 'guide'
-              ? 'bg-[#0A2472] text-white shadow-lg shadow-[#0A2472]/20 scale-[1.02]'
-              : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
-          }`}
-        >
-          <BookOpen className="w-4 h-4" />
-          <span>دليل المساعدة</span>
-        </button>
-
-        {user?.role === 'SUPER_ADMIN' && (
+        {isSuperAdmin && (
           <button
             type="button"
             onClick={() => setActiveTab('oracle')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+            className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
               activeTab === 'oracle'
                 ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20 scale-[1.02]'
                 : 'text-amber-700 hover:bg-amber-100/60'
@@ -237,38 +216,32 @@ export default function SettingsPage() {
             <span>ترحيل Oracle</span>
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('guide')}
+          className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+            activeTab === 'guide'
+              ? 'bg-[#0A2472] text-white shadow-lg shadow-[#0A2472]/20 scale-[1.02]'
+              : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>دليل المساعدة</span>
+        </button>
       </div>
 
-      {/* Tab: Branch Identity & System Information */}
-      {activeTab === 'system' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          {/* Branch Identity */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Building2 className="w-5 h-5 text-[#0A2472]" />
-              <h2 className="text-lg font-semibold">هوية الفرع والبيانات التشغيلية</h2>
-            </div>
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-50 rounded-lg">
-                <label className="block text-sm font-medium text-slate-700 mb-2">اسم الفرع</label>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={branchName}
-                    onChange={(e) => setBranchName(e.target.value)}
-                    placeholder="مثال: فرع المنصورة"
-                    className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:border-[#0A2472] focus:outline-none"
-                  />
-                  <PrimaryButton onClick={handleSaveBranchName} disabled={branchLoading || branchName === savedBranchName}>
-                    {branchLoading ? 'جاري الحفظ...' : 'حفظ'}
-                  </PrimaryButton>
-                </div>
-                {savedBranchName && (
-                  <p className="text-xs text-emerald-600 mt-2">✅ الاسم المسجل: {savedBranchName}</p>
-                )}
-              </div>
-            </div>
-          </div>
+      {/* Tab: Branches Management */}
+      {activeTab === 'branches' && canManageUsers && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <BranchesManagement embedded={true} />
+        </div>
+      )}
+
+      {/* Tab: Users Management */}
+      {activeTab === 'users' && canManageUsers && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <UsersManagement embedded={true} />
         </div>
       )}
 
