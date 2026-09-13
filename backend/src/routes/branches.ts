@@ -6,6 +6,7 @@ import { Customer } from '../entities/Customer.js';
 import { MachineSale } from '../entities/MachineSale.js';
 import { authenticate, requireRoles } from '../middleware/auth.js';
 import { logAudit } from '../services/auditService.js';
+import { saveLocalState } from '../pgMemSource.js';
 import { z } from 'zod';
 
 const router = Router();
@@ -94,6 +95,7 @@ router.post('/', requireRoles(UserRole.SUPER_ADMIN), async (req: Request, res: R
 
     await branchRepo.save(branch);
     await logAudit(req, 'BRANCH_CREATE', 'Branch', branch.id, { code: branch.code, name: branch.name });
+    saveLocalState(AppDataSource).catch(() => {});
 
     res.status(201).json({ message: 'تم إنشاء الفرع بنجاح', branch });
   } catch (err) {
@@ -123,6 +125,7 @@ router.put('/:id', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER), asyn
 
     await branchRepo.save(branch);
     await logAudit(req, 'BRANCH_UPDATE', 'Branch', branch.id, parsed.data);
+    saveLocalState(AppDataSource).catch(() => {});
 
     res.json({ message: 'تم تحديث بيانات الفرع بنجاح', branch });
   } catch (err) {
@@ -143,6 +146,7 @@ router.post('/:id/toggle-active', requireRoles(UserRole.SUPER_ADMIN), async (req
     branch.isActive = !branch.isActive;
     await branchRepo.save(branch);
     await logAudit(req, branch.isActive ? 'BRANCH_ACTIVATE' : 'BRANCH_DEACTIVATE', 'Branch', branch.id, { name: branch.name });
+    saveLocalState(AppDataSource).catch(() => {});
 
     res.json({ message: branch.isActive ? 'تم تفعيل الفرع' : 'تم إيقاف الفرع', isActive: branch.isActive });
   } catch (err) {

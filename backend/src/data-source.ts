@@ -72,6 +72,8 @@ export function createSqliteDataSourceOptions(databasePath?: string): DataSource
     entities,
   };
 }
+import { createPgMemDataSource, loadLocalState, saveLocalState } from './pgMemSource.js';
+import { ensureInitialSeed } from './scripts/seed.js';
 
 export function getDataSourceOptions(): DataSourceOptions {
   const activeType = process.env.DB_TYPE || 'postgres';
@@ -87,10 +89,49 @@ export function setAppDataSource(ds: DataSource) {
 }
 
 export async function initializeDatabase(): Promise<DataSource> {
-  if (!AppDataSource.isInitialized) {
-    console.log(`[Database] Connecting using ${AppDataSource.options.type}...`);
+  if (AppDataSource.isInitialized) {
+    return AppDataSource;
+  }
+
+  const activeType = process.env.DB_TYPE || 'postgres';
+  if (activeType === 'memory' || activeType === 'embedded') {
+    console.log('[Database] Initializing Embedded PostgreSQL Engine (pg-mem)...');
+    const memDs = createPgMemDataSource();
+    await memDs.initialize();
+    setAppDataSource(memDs);
+    console.log('[Database] ✅ Connected successfully to Embedded PostgreSQL');
+    const restored = await loadLocalState(memDs);
+    if (!restored) {
+      await ensureInitialSeed();
+      await saveLocalState(memDs);
+    }
+    return memDs;
+  }
+
+  console.log(`[Database] Connecting using ${AppDataSource.options.type}...`);
+  try {
     await AppDataSource.initialize();
     console.log(`[Database] ✅ Connected successfully to ${AppDataSource.options.type}`);
+    await ensureInitialSeed();
+  } catch (err: any) {
+    // In development or local runs, if Postgres server is not running, seamlessly fallback to embedded PostgreSQL
+    if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_DB_FALLBACK === 'true') {
+      console.warn(`[Database] ⚠️ Local ${AppDataSource.options.type} database is not reachable (${err?.code || err?.message || 'Connection refused'}).`);
+      console.log(`[Database] 🚀 Switching automatically to Embedded PostgreSQL Engine (pg-mem)...`);
+      const memDs = createPgMemDataSource();
+      await memDs.initialize();
+      setAppDataSource(memDs);
+      console.log('[Database] ✅ Connected successfully to Embedded PostgreSQL');
+      const restored = await loadLocalState(memDs);
+      if (!restored) {
+        await ensureInitialSeed();
+        await saveLocalState(memDs);
+      }
+      return memDs;
+    }
+
+    throw err;
   }
+
   return AppDataSource;
 }

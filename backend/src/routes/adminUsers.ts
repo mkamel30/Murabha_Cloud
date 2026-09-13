@@ -5,6 +5,7 @@ import { Branch } from '../entities/Branch.js';
 import { hashPassword } from '../utils/auth.js';
 import { authenticate, requireRoles } from '../middleware/auth.js';
 import { logAudit } from '../services/auditService.js';
+import { saveLocalState } from '../pgMemSource.js';
 import { z } from 'zod';
 
 const router = Router();
@@ -92,6 +93,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     await userRepo.save(newUser);
     await logAudit(req, 'USER_CREATE', 'User', newUser.id, { username, role, branchId });
+    saveLocalState(AppDataSource).catch(() => {});
 
     res.status(201).json({
       message: 'تم إنشاء المستخدم بنجاح',
@@ -132,6 +134,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     await userRepo.save(user);
     await logAudit(req, 'USER_UPDATE', 'User', user.id, parsed.data);
+    saveLocalState(AppDataSource).catch(() => {});
 
     res.json({ message: 'تم تحديث بيانات المستخدم بنجاح', user });
   } catch (err) {
@@ -158,6 +161,7 @@ router.post('/:id/reset-password', async (req: Request, res: Response) => {
     user.password = await hashPassword(newPassword);
     await userRepo.save(user);
     await logAudit(req, 'USER_RESET_PASSWORD', 'User', user.id, { username: user.username });
+    saveLocalState(AppDataSource).catch(() => {});
 
     res.json({ message: 'تمت إعادة تعيين كلمة المرور بنجاح' });
   } catch (err) {
@@ -182,6 +186,7 @@ router.post('/:id/toggle-active', async (req: Request, res: Response) => {
     user.isActive = !user.isActive;
     await userRepo.save(user);
     await logAudit(req, user.isActive ? 'USER_ACTIVATE' : 'USER_SUSPEND', 'User', user.id, { username: user.username });
+    saveLocalState(AppDataSource).catch(() => {});
 
     res.json({ message: user.isActive ? 'تم تنشيط الحساب' : 'تم تجميد الحساب', isActive: user.isActive });
   } catch (err) {
@@ -205,6 +210,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     await userRepo.remove(user);
     await logAudit(req, 'USER_DELETE', 'User', id, { username: user.username });
+    saveLocalState(AppDataSource).catch(() => {});
 
     res.json({ message: 'تم حذف المستخدم بنجاح' });
   } catch (err) {

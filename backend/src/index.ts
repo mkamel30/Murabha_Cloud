@@ -14,7 +14,7 @@ config();
 (BigInt.prototype as any).toJSON = function () { return Number(this); };
 
 import { initializeDatabase, AppDataSource } from './data-source.js';
-import { ensureInitialSeed } from './scripts/seed.js';
+
 
 import authRouter from './routes/auth.js';
 import adminUsersRouter from './routes/adminUsers.js';
@@ -190,6 +190,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+import { saveLocalState } from './pgMemSource.js';
+
 // Initialize Database & Seed when started directly as main entry
 const isDirectRun = process.argv[1] && (process.argv[1].endsWith('index.ts') || process.argv[1].endsWith('index.mjs') || process.argv[1].endsWith('index.js'));
 
@@ -197,17 +199,29 @@ if (isDirectRun && process.env.NODE_ENV !== 'test') {
   (async () => {
     try {
       await initializeDatabase();
-      await ensureInitialSeed();
     } catch (err: any) {
       console.error('❌ Failed to initialize database:', err?.message || err);
       console.warn('⚠️ Server will still listen for requests, but database queries may fail until connection is ready.');
     }
   })();
 
-  app.listen(Number(PORT), '0.0.0.0', () => {
+  const server = app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🚀 Murabha Cloud Backend running on port ${PORT}`);
     console.log(`🌐 Ready for cloud deployment`);
   });
+
+  const gracefulShutdown = async () => {
+    console.log('\n[Server] Shutting down gracefully...');
+    try {
+      await saveLocalState(AppDataSource);
+    } catch (_) {}
+    server.close(() => {
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGINT', gracefulShutdown);
+  process.on('SIGTERM', gracefulShutdown);
 }
 
 export default app;
