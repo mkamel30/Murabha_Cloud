@@ -20,7 +20,6 @@ export default function SettingsPage() {
   });
   const [loading, setLoading] = useState(false);
   const [backupFiles, setBackupFiles] = useState<BackupFile[]>([]);
-  const [networkUrl, setNetworkUrl] = useState<string>('');
   const [showMfaModal, setShowMfaModal] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,13 +32,6 @@ export default function SettingsPage() {
 
   const toggleHelpTab = (tab: string) => {
     setActiveHelpTab(activeHelpTab === tab ? null : tab);
-  };
-
-  const loadNetworkUrl = async () => {
-    if (window.electronAPI?.getNetworkURL) {
-      const url = await window.electronAPI.getNetworkURL();
-      setNetworkUrl(url);
-    }
   };
 
   const loadBackupFiles = async () => {
@@ -82,7 +74,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadBackupFiles();
-    loadNetworkUrl();
     loadBranchConfig();
   }, []);
 
@@ -187,17 +178,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleCheckUpdates = async () => {
-    if (window.electronAPI?.checkForUpdates) {
-      setLoading(true);
-      try {
-        await window.electronAPI.checkForUpdates();
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
   return (
     <div className="space-y-6 max-w-2xl mx-auto pb-12">
       <PageHeader title="الإعدادات" />
@@ -259,32 +239,14 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* Tab: System Update, Branch Identity, and Network Access */}
+      {/* Tab: Branch Identity & System Information */}
       {activeTab === 'system' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          {/* System Update */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <RefreshCw className="w-5 h-5 text-[#0A2472]" />
-              <h2 className="text-lg font-semibold">تحديث النظام</h2>
-            </div>
-            <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-lg flex items-center justify-between">
-              <div>
-                <p className="text-sm text-emerald-800 font-medium">التحقق من وجود إصدارات جديدة</p>
-                <p className="text-xs text-emerald-600 mt-1">تأكد من الاتصال بالإنترنت لتلقي آخر التحسينات.</p>
-              </div>
-              <PrimaryButton onClick={handleCheckUpdates} disabled={loading}>
-                <RefreshCw size={16} className={`ml-2 ${loading ? 'animate-spin' : ''}`} />
-                فحص الآن
-              </PrimaryButton>
-            </div>
-          </div>
-
           {/* Branch Identity */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center gap-3 mb-4">
               <Building2 className="w-5 h-5 text-[#0A2472]" />
-              <h2 className="text-lg font-semibold">هوية الفرع</h2>
+              <h2 className="text-lg font-semibold">هوية الفرع والبيانات التشغيلية</h2>
             </div>
             <div className="space-y-4">
               <div className="p-4 bg-slate-50 rounded-lg">
@@ -307,27 +269,6 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
-
-          {/* Network Access */}
-          {networkUrl && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <RefreshCw className="w-5 h-5 text-[#0A2472]" />
-                <h2 className="text-lg font-semibold">الوصول عبر الشبكة</h2>
-              </div>
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                <p className="text-sm text-blue-800 mb-2">
-                  يمكن للأجهزة الأخرى على نفس الشبكة الوصول إلى التطبيق عبر الرابط التالي:
-                </p>
-                <div className="bg-white p-3 rounded border border-blue-200 text-center font-mono font-bold text-blue-700 text-lg">
-                  {networkUrl}
-                </div>
-                <p className="text-xs text-blue-600 mt-2">
-                  * تأكد من أن الأجهزة متصلة بنفس شبكة Wi-Fi
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
