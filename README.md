@@ -1,4 +1,4 @@
-﻿# Murabha Cloud
+# Murabha Cloud
 
 [![Node.js](https://img.shields.io/badge/Node.js-20_LTS-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
@@ -106,7 +106,7 @@ npm run dev
 ```
 
 - **Backend API**: `http://localhost:3007`
-- **Frontend SPA**: `http://localhost:5173`
+- **Frontend SPA**: `http://localhost:2436`
 
 ---
 

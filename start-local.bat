@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 title Murabha Cloud - Local Server Launcher
 color 0B
@@ -33,7 +33,7 @@ if not exist "node_modules" (
 
 echo [INFO] Preparing Local Environment...
 echo [INFO] Backend will run on:  http://localhost:3007
-echo [INFO] Frontend will run on: http://localhost:5173
+echo [INFO] Frontend will run on: http://localhost:2436
 echo.
 echo -------------------------------------------------------------------------------
 echo Default Credentials:
@@ -48,7 +48,7 @@ start "Murabha Cloud - Backend API (Port 3007)" cmd /k "cd /d %~dp0 && npm run d
 
 :: 4. Launch Frontend in a separate window
 echo [INFO] Starting Frontend Web Service in background window...
-start "Murabha Cloud - Frontend UI (Port 5173)" cmd /k "cd /d %~dp0 && npm run dev:frontend"
+start "Murabha Cloud - Frontend UI (Port 2436)" cmd /k "cd /d %~dp0 && npm run dev:frontend"
 
 echo.
 echo [SUCCESS] Both servers are starting up!
@@ -57,7 +57,7 @@ timeout /t 5 /nobreak >nul
 
 :: 5. Open Default Browser
 echo [INFO] Opening Murabha Cloud in your default browser...
-start http://localhost:5173
+start http://localhost:2436
 
 echo.
 echo ===============================================================================

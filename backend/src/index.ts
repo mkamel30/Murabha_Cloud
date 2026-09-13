@@ -48,7 +48,7 @@ const PORT = process.env.PORT || 3007;
 // Allowed Origins for CORS
 const allowedOrigins = process.env.CORS_ORIGINS 
   ? process.env.CORS_ORIGINS.split(',') 
-  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3007'];
+  : ['http://localhost:2436', 'http://localhost:3000', 'http://localhost:3007'];
 
 app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
