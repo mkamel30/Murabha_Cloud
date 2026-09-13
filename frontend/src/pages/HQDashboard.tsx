@@ -56,12 +56,14 @@ export default function HQDashboard() {
               onChange={(e) => setSelectedBranchId(e.target.value)}
               className="text-xs font-bold text-[#0A2472] bg-transparent focus:outline-none cursor-pointer"
             >
-              <option value="ALL">🏢 كل الفروع (المقر الرئيسي)</option>
-              {stats.branchBenchmarks.map((b: any) => (
-                <option key={b.branchId} value={b.branchId}>
-                  📍 {b.branchName}
-                </option>
-              ))}
+              <option value="ALL">🏢 جميع الفروع</option>
+              {stats.branchBenchmarks
+                .filter((b: any) => b.branchCode !== 'HQ')
+                .map((b: any) => (
+                  <option key={b.branchId} value={b.branchId}>
+                    📍 {b.branchName}
+                  </option>
+                ))}
             </select>
           </div>
         )}
@@ -143,7 +145,7 @@ export default function HQDashboard() {
               <p className="text-xs text-slate-400 mt-0.5">مرتبة حسب أعلى نسبة تحصيل وكفاءة تحصيل المديونيات</p>
             </div>
             <span className="text-xs bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full">
-              {stats.branchBenchmarks.length} فروع نشطة
+              {stats.branchBenchmarks.length === 1 ? 'فرع تشغيلي واحد' : `${stats.branchBenchmarks.length} فروع نشطة`}
             </span>
           </div>
 
