@@ -26,7 +26,7 @@ export class CustomerService {
       error.statusCode = 400;
       throw error;
     }
-    const createData: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> & { branchId?: string } = {
+    const createData: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> = {
       bkCode: data.bkCode,
       customerType: data.customerType,
       name: data.name,
@@ -34,7 +34,7 @@ export class CustomerService {
       address: data.address || null,
       notes: data.notes || null,
       department: data.department || null,
-      branchId,
+      branchId: branchId || null,
     };
     return customerRepo.create(createData);
   }

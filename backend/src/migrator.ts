@@ -54,6 +54,16 @@ const MIGRATIONS: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_customer_branchId ON Customer(branchId);`,
       `CREATE INDEX IF NOT EXISTS idx_machinesale_branchId ON MachineSale(branchId);`
     ]
+  },
+  {
+    version: '1.0.6',
+    description: 'إضافة دعم مباشر لحقل الفرع للأقساط والدفعات وربطها بالكامل بفرع القاهرة-الجيش',
+    sql: [
+      `ALTER TABLE Installment ADD COLUMN branchId TEXT;`,
+      `ALTER TABLE Payment ADD COLUMN branchId TEXT;`,
+      `CREATE INDEX IF NOT EXISTS idx_installment_branchId ON Installment(branchId);`,
+      `CREATE INDEX IF NOT EXISTS idx_payment_branchId ON Payment(branchId);`
+    ]
   }
 ];
 
@@ -119,7 +129,13 @@ async function backfillBranchIds(prisma: PrismaClient): Promise<void> {
     await prisma.$executeRawUnsafe(
       `UPDATE MachineSale SET branchId = '${defaultBranchId}' WHERE branchId IS NULL OR branchId = '';`
     );
-    console.log('✅ Backfilled existing customers & sales with active default branch.');
+    await prisma.$executeRawUnsafe(
+      `UPDATE Installment SET branchId = '${defaultBranchId}' WHERE branchId IS NULL OR branchId = '';`
+    );
+    await prisma.$executeRawUnsafe(
+      `UPDATE Payment SET branchId = '${defaultBranchId}' WHERE branchId IS NULL OR branchId = '';`
+    );
+    console.log('✅ Backfilled all customers, sales, installments & payments to القاهرة-الجيش.');
   } catch (err: any) {
     // Ignore error if columns don't exist yet
   }

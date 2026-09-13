@@ -32,6 +32,7 @@ export class FollowUpService {
         : null,
       isCompleted: false,
       completedAt: null,
+      branchId: (customer as any).branchId || null,
     });
   }
 

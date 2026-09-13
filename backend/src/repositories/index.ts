@@ -67,7 +67,7 @@ export class CustomerRepository {
     });
   }
 
-  async create(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> & { branchId?: string }) {
+  async create(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> & { branchId?: string | null }) {
     const { branchId, ...rest } = data;
     const customer = await prisma.customer.create({
       data: rest,
@@ -176,7 +176,7 @@ export class SaleRepository {
     });
   }
 
-  async create(data: Omit<MachineSale, 'id' | 'createdAt' | 'updatedAt'> & { branchId?: string }) {
+  async create(data: Omit<MachineSale, 'id' | 'createdAt' | 'updatedAt'> & { branchId?: string | null }) {
     const { branchId, ...rest } = data;
     const sale = await prisma.machineSale.create({
       data: rest,
