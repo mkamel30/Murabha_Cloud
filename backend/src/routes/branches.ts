@@ -49,25 +49,17 @@ router.get('/', async (req: Request, res: Response) => {
         let totalRemaining = 0;
 
         try {
-          customersCount = await prisma.customer.count({
-            where: { branchId: b.id } as any,
-          });
+          const cRows = await prisma.$queryRawUnsafe<{ count: number }[]>(
+            `SELECT COUNT(*) as count FROM Customer WHERE branchId = '${b.id}'`
+          );
+          customersCount = Number(cRows[0]?.count || 0);
 
-          const salesAgg = await prisma.machineSale.aggregate({
-            where: {
-              branchId: b.id,
-              status: { not: 'VOIDED' },
-            } as any,
-            _sum: {
-              totalPrice: true,
-              paidAmount: true,
-              remainingAmount: true,
-            },
-          });
-
-          totalSales = Number(salesAgg._sum.totalPrice || 0);
-          totalPaid = Number(salesAgg._sum.paidAmount || 0);
-          totalRemaining = Number(salesAgg._sum.remainingAmount || 0);
+          const sRows = await prisma.$queryRawUnsafe<{ totalPrice: number; paidAmount: number; remainingAmount: number }[]>(
+            `SELECT SUM(totalPrice) as totalPrice, SUM(paidAmount) as paidAmount, SUM(remainingAmount) as remainingAmount FROM MachineSale WHERE branchId = '${b.id}' AND status != 'VOIDED'`
+          );
+          totalSales = Number(sRows[0]?.totalPrice || 0);
+          totalPaid = Number(sRows[0]?.paidAmount || 0);
+          totalRemaining = Number(sRows[0]?.remainingAmount || 0);
         } catch (_) {}
 
         // Fallback to TypeORM if Prisma returned 0 (e.g. during specific automated test mock scenarios)

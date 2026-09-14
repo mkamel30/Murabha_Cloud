@@ -22,7 +22,9 @@ export class AnalyticsService {
       }
     }
 
-    const saleBranchFilter = branchId && branchId !== 'ALL' ? { branchId } : {};
+    const saleIdFilter = branchSaleIds !== null
+      ? { id: { in: branchSaleIds.length > 0 ? branchSaleIds : ['__NONE__'] } }
+      : {};
     const saleRelationFilter = branchSaleIds !== null
       ? { saleId: { in: branchSaleIds.length > 0 ? branchSaleIds : ['__NONE__'] } }
       : {};
@@ -39,7 +41,7 @@ export class AnalyticsService {
     const salesFilter = hasDateCondition ? { saleDate: dateCondition } : {};
     const totalSales = await prisma.machineSale.aggregate({
       _sum: { totalPrice: true, downPayment: true },
-      where: { status: 'ACTIVE', ...saleBranchFilter, ...salesFilter }
+      where: { status: 'ACTIVE', ...saleIdFilter, ...salesFilter }
     });
 
     // 2. KPI: Collections (Payments made in this period)
@@ -141,7 +143,7 @@ export class AnalyticsService {
     // In SQLite, complex groupBy with relations can be tricky, so we'll fetch unpaid overdue and group in memory
     const defaultingSales = await prisma.machineSale.findMany({
       where: {
-        ...saleBranchFilter,
+        ...saleIdFilter,
         status: 'ACTIVE',
         installments: {
           some: {
