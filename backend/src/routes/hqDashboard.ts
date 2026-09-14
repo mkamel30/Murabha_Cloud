@@ -1,12 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { HQDashboardService } from '../services/hqDashboardService.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, requireRoles } from '../middleware/auth.js';
+import { UserRole } from '../entities/User.js';
 import { branchScopeMiddleware } from '../middleware/branchScope.js';
 
 const router = Router();
 const hqDashboardService = new HQDashboardService();
 
-router.use(authenticate, branchScopeMiddleware);
+router.use(
+  authenticate,
+  requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserRole.HQ_ACCOUNTANT),
+  branchScopeMiddleware
+);
 
 router.get('/hq', async (req: Request, res: Response) => {
   try {

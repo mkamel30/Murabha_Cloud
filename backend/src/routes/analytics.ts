@@ -9,7 +9,7 @@ router.get('/dashboard', async (req: Request, res: Response, next: NextFunction)
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
 
-    const data = await analyticsService.getDashboardData({ startDate, endDate });
+    const data = await analyticsService.getDashboardData({ startDate, endDate }, req.branchId);
     res.json(data);
   } catch (error) {
     next(error);
