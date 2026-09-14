@@ -1,4 +1,4 @@
-﻿# System Architecture & Technical Design
+# System Architecture & Technical Design
 
 This document describes the architectural principles, data flow, multi-branch isolation design, and database portability models powering **Murabha Cloud**.
 
@@ -61,6 +61,73 @@ Isolation is enforced centrally before requests hit controller business logic:
   - These roles are permitted to supply `x-branch-id` to filter views for a specific branch, or omit it to query aggregated data across all company branches.
 
 ---
+
+## ⚙️ Dynamic System Configuration & Feature Toggles
+
+To support flexible operational models across diverse business units, Murabha Cloud implements dynamic database-backed feature configuration:
+- **Entity**: `SystemSetting` (`key: varchar(64) PK`, `value: text`, `updatedAt: timestamp`).
+- **REST Endpoints**:
+  - `GET /api/settings`: Returns a key-value dictionary of all active system flags.
+  - `PUT /api/settings/:key`: Updates or inserts a configuration property (restricted to `SUPER_ADMIN`).
+- **Example Flag — `enableCashSales`**:
+  - Controls whether the platform accepts immediate full-cash machine purchases or restricts activity purely to installment contracts.
+  - Enforced symmetrically across UI rendering (Sale Type selector) and API controllers (`saleService.ts` rejects cash requests with `400 Bad Request` if disabled).
+
+---
+
+## 💵 Sales Lifecycle: Installment vs. Cash Sales
+
+The system distinguishes between traditional Murabaha installment schedules and immediate cash contracts:
+
+```
+                  ┌───────────────────────────────┐
+                  │      POST /api/sales          │
+                  └───────────────┬───────────────┘
+                                  │
+                   Is saleType === 'CASH'?
+                                 / \
+                         Yes    /   \   No (INSTALLMENT)
+                               ▼     ▼
+  ┌────────────────────────────────┐ ┌────────────────────────────────┐
+  │ Verify enableCashSales setting │ │ Calculate Monthly Installments │
+  │ totalPrice = downPayment       │ │ totalPrice = downPayment +     │
+  │ remainingAmount = 0            │ │              remainingBalance  │
+  │ status = 'COMPLETED'           │ │ status = 'ACTIVE'              │
+  │ Zero Installment Rows          │ │ N Installment Rows Generated   │
+  │ 1 Treasury Payment Registered  │ │ Initial Down Payment Receipt   │
+  └────────────────────────────────┘ └────────────────────────────────┘
+```
+
+1. **Installment Sales (`INSTALLMENT`)**:
+   - Requires upfront down payment (if any) and a set installment count (months).
+   - Generates individual `Installment` records with sequential due dates and tracking statuses (`UNPAID`, `PARTIALLY_PAID`, `PAID`).
+2. **Cash Sales (`CASH`)**:
+   - `totalPrice` must equal the upfront payment.
+   - Contract is created in status `COMPLETED` with `remainingAmount = 0`.
+   - Generates zero installment schedule rows.
+   - Registers a single payment entry in the `Payment` ledger linked to the branch treasury.
+   - Included in specialized Cash Sales reports and month-end accounting reconciliation.
+
+---
+
+## 📥 Legacy Excel Import & Data Normalization Pipeline
+
+To onboard historical Excel sheets cleanly into relational storage, the `POST /api/import/excel` engine executes a multi-stage validation and normalization pipeline:
+
+1. **Structural & Header Validation**: Validates existence of expected bilingual column mappings (e.g. `كود العميل`, `السيريال`, `إجمالي قيمة العقد`).
+2. **Strict Date Parsing**:
+   - Handles Excel serial timestamps (e.g., `44123`), ISO strings (`YYYY-MM-DD`), and Arabic/standard date formats (`DD/MM/YYYY`).
+   - Bounds-checked strictly between **2000-01-01** and **2050-12-31** to prevent corrupt or overflow dates.
+3. **Financial Sanity & Rounding Tolerance**:
+   - Guards against negative numbers and division by zero.
+   - Implements a configurable **5.0 EGP tolerance threshold** to smoothly accommodate historical penny rounding discrepancies.
+4. **Collision-Safe Receipt Generation**:
+   - Generates unique deterministic receipt indices:
+     - Down payment receipt: `R-IMP-{saleId}-0`
+     - Historical installment receipts: `R-IMP-{saleId}-{installmentNumber}`
+   - Guarantees zero primary key / receipt collision even when importing large multi-sheet workbooks.
+5. **Atomic FIFO Settlement**:
+   - Distributes cumulative paid amounts (`المسدد`) across generated installments in chronological order, automatically tagging fully paid vs. partially paid debts.
 
 ## 🔄 The Dual-Database Strategy: PostgreSQL & Oracle
 

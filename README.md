@@ -44,13 +44,23 @@ Granular, well-defined permissions ensure everyone operates within their exact r
 - **Branch Performance Benchmarking**: Side-by-side comparison tables highlighting top-performing branches and delinquency alerts.
 - **Live Collections Stream**: Instant visibility into incoming payments as they happen across all branches.
 
-### 4. Zero-Friction Oracle Migration Wizard
+### 4. Flexible Sales Engine (Installments & Configurable Cash Sales)
+- **Murabaha Installment Schedules**: Flexible repayment timelines (e.g., 6, 12, 18, 24 months) with automatic schedule generation and down payment tracking.
+- **Configurable Cash Sales**: Admin-controlled toggle (`enableCashSales`) in System Settings. When active, branches can register immediate full-payment cash sales without generating phantom installment schedules.
+- **Dedicated Cash Reports & KPI Metrics**: Specialized reporting tabs tracking cash revenue, average ticket sizes, and 1-click Excel financial exports.
+
+### 5. Intelligent Legacy Excel Ingestion Pipeline
+- **Bilingual Spreadsheet Onboarding**: Directly imports historical customer and contract records from Excel (`.xlsx`).
+- **Resilient Data Sanitization**: Strict year boundaries (2000–2050), automatic rounding variance tolerance (±5.0 EGP), non-negative integrity guards, and collision-free receipt indexing (`R-IMP-...`).
+- **FIFO Debt Settlement**: Automatically walks historical paid amounts across chronological installment schedules.
+
+### 6. Zero-Friction Oracle Migration Wizard
 Migrating from PostgreSQL to Oracle Database is notoriously painful. Murabha Cloud includes a built-in admin wizard to make it painless:
 - **Thin Mode Connectivity**: Powered by `node-oracledb 6+` in pure JavaScript thin mode. No cumbersome Oracle Instant Client C-binaries required.
 - **Auto DDL Provisioning**: Generates compliant tables, constraints, and indexes on Oracle Database with one click.
 - **Chunked Data Migration & Verification**: Copies historical records in safe batches and performs double-entry financial audits to verify that sales, installments, and payment totals match down to the cent.
 
-### 5. Enterprise Security Hardening
+### 7. Enterprise Security Hardening
 - **Password Security**: Salted `bcryptjs` hashing with 12 rounds.
 - **Dual-Token Architecture**: Short-lived Access Tokens (15 min) paired with Refresh Tokens stored in secure `HttpOnly, SameSite=Strict, Secure` cookies.
 - **Tamper-Proof Audit Logging**: Every sensitive action (logins, account suspensions, password resets, database actions) is recorded with IP addresses and user agents.

@@ -1,4 +1,4 @@
-﻿# Murabha Cloud — User Guide
+# Murabha Cloud — User Guide
 
 Welcome to **Murabha Cloud**, an intuitive platform for installment contract management, multi-branch tracking, and collections.
 
@@ -84,24 +84,40 @@ Click on any customer in the list to open their complete ledger:
 
 ---
 
-## 5. Sales & Installment Contracts
+## 5. Sales & Contracts (Installments & Cash)
 
-### Registering a New Installment Sale
+Murabha Cloud supports both traditional installment financing (Murabaha) and immediate cash sales.
+
+### A. Registering an Installment Sale (بيع تقسيط)
 1. Go to **Sales** and click **New Sale Contract**.
-2. Select the customer from the list.
-3. Enter device/machine details:
+2. Ensure **Installment (بيع تقسيط)** is selected as the Sale Type.
+3. Select the customer from the list.
+4. Enter machine details:
    - **Machine Serial Number**
    - **Total Price**
    - **Down Payment** (if any) and initial receipt number.
-4. Set the repayment schedule:
+5. Set the repayment schedule:
    - Number of installments (e.g., 6, 12, 18, 24 months).
    - First installment due date.
-5. Review the calculated monthly payment.
-6. Click **Confirm & Issue Contract**. The installment schedule is generated automatically.
+6. Review the calculated monthly payment.
+7. Click **Confirm & Issue Contract**. The installment schedule is generated automatically.
+
+### B. Registering a Cash Sale (بيع كاش / نقدي)
+*(Note: Requires Cash Sales to be enabled by an administrator in Settings)*
+1. Go to **Sales** and click **New Sale Contract**.
+2. Select **Cash Sale (بيع كاش)** under the Sale Type selector.
+3. Select the customer from the list.
+4. Enter machine details:
+   - **Machine Serial Number**
+   - **Total Cash Price (إجمالي المبلغ المدفوع)**: The entire sale value is settled immediately.
+   - **Receipt Number (رقم الإيصال)**: Enter the official printed receipt number.
+   - **Payment Method (طريقة الدفع)**: Cash, Bank Transfer, or Card.
+5. Click **Confirm & Complete Sale**.
+6. The sale is created with status **COMPLETED** (مكتمل) immediately, zero installments are generated, and a collection payment record is registered in the system treasury.
 
 ---
 
-## 6. Installment Tracking & Collections
+## 6. Installment Tracking, Collections & Data Import
 
 ### Collecting Single Installments
 1. Go to **Installments**.
@@ -115,15 +131,34 @@ When a customer pays a lump sum covering multiple installments:
 - The system automatically settles the oldest overdue installments first (First-In, First-Out).
 - A combined single receipt is generated for the customer.
 
+### Importing Historical Sales via Excel (استيراد البيانات القديمة)
+For migrating legacy contracts into Murabha Cloud:
+1. Navigate to the **Import Data** section.
+2. Prepare your Excel spreadsheet following the standardized columns:
+   - **Customer Info**: Customer Code (كود العميل), Customer Type (نوع العميل), Department (الإدارة), Name (اسم العميل).
+   - **Machine Info**: Serial Number (السيريال), Sale Date (تاريخ البيع).
+   - **Contract Financials**: Total Price (إجمالي قيمة العقد), Total Installments (إجمالي الأقساط), Installment Count (عدد الأقساط), Paid Amount (المسدد), Remaining Amount (المتبقي).
+3. Upload the file. The system applies strict business rules:
+   - **Strict Date Range**: Validates dates fall strictly between 2000 and 2050 (prevents corrupt dates).
+   - **Financial Sanity Checks**: Guards against negative numbers and zero division.
+   - **Rounding Tolerance**: Accommodates small historical rounding variances (up to 5.0 EGP) without failing the row.
+   - **Collision-Safe Receipts**: Generates unique receipt codes (`R-IMP-...`) guaranteeing zero receipt duplication.
+   - **FIFO Auto-Settlement**: Generates installment schedules and marks historical payments as settled automatically.
+
 ---
 
 ## 7. Reports & Financial Reconciliation
 
 Access the **Reports** section to generate clear financial insights:
 
-- **Collection Ratio Report**: Measures collected dues against expected dues within any date range.
-- **Overdue Installments Report**: Lists delinquent accounts grouped by branch or days past due.
-- **Month Closing Report**: Formal audit summary showing cash sales, down payments, and installment collections ready for accounting books.
+- **Monthly Closing Report (تقرير الإقفال الشهري)**: Formal audit summary showing cash sales, down payments, and installment collections ready for accounting books.
+- **Cash Sales Report (تقرير المبيعات الكاش)**:
+  - Dedicated tab displaying all machines sold for cash without installments.
+  - KPI metric cards: **Total Cash Sales Count**, **Total Cash Revenue (إجمالي المتحصلات)**, and **Average Cash Ticket (متوسط البيع الكاش)**.
+  - Instant filtering by branch, customer, machine serial, and transaction date.
+  - One-click **Export to Excel (تصدير إكسيل)** for financial accounting.
+- **Collection Ratio Report (نسبة التحصيل)**: Measures collected dues against expected dues within any date range.
+- **Overdue Installments Report (الأقساط المتأخرة)**: Lists delinquent accounts grouped by branch or days past due.
 - **Excel & PDF Exports**: Every report includes a one-click export button.
 
 ---
@@ -141,6 +176,14 @@ Access the **Reports** section to generate clear financial insights:
 - Assign the appropriate role (`BRANCH_MANAGER`, `BRANCH_COLLECTOR`, `BRANCH_DATA_ENTRY`) and link them to their branch.
 - **Resetting Passwords**: Click the key icon beside any user to issue a new secure password.
 - **Account Suspension**: Temporarily suspend or reactivate staff access with one click.
+
+### System Settings & Feature Configuration (`SUPER_ADMIN`)
+- Navigate to **Settings** and choose the **General Settings (الإعدادات العامة)** tab.
+- **Enable Cash Sales (تفعيل البيع الكاش)**:
+  - Toggle this setting ON to allow branches to register cash sales alongside installment sales.
+  - When enabled, the Sale Type selector appears in the New Sale modal, and the dedicated Cash Sales report becomes available.
+  - When disabled, the platform operates purely in installment financing mode, hiding cash sale options across operational screens to avoid data entry confusion.
+- Settings are saved dynamically without requiring a backend server restart.
 
 ---
 
