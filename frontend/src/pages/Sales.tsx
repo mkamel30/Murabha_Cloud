@@ -559,15 +559,11 @@ export default function Sales() {
                           value={formData.actualPaidAmount || ''}
                           onChange={(e) => {
                             const val = Number(e.target.value);
-                            setFormData(prev => ({ 
-                              ...prev, 
-                              actualPaidAmount: val, 
-                              downPayment: prev.downPayment === 0 || prev.downPayment === 3000 ? Math.min(val, 3000) : prev.downPayment 
-                            }));
+                            setFormData(prev => ({ ...prev, actualPaidAmount: val }));
                           }}
                           onWheel={(e) => e.currentTarget.blur()}
                           className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-bold text-[#0A2472]"
-                          placeholder="مثلاً 7530"
+                          placeholder="مثلاً 3000"
                         />
                       </div>
                       <div>
@@ -575,7 +571,11 @@ export default function Sales() {
                         <input
                           type="number"
                           value={formData.downPayment || ''}
-                          onChange={(e) => setFormData({ ...formData, downPayment: Number(e.target.value) })}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setFormData(prev => ({ ...prev, downPayment: val }));
+                          }}
+                          onWheel={(e) => e.currentTarget.blur()}
                           className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-bold text-teal-700"
                           placeholder="3000"
                         />
