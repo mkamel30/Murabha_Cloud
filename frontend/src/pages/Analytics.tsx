@@ -165,7 +165,7 @@ export default function Analytics() {
             </div>
           </div>
           <div className="h-[300px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <ResponsiveContainer width="100%" height={300} minWidth={0}>
               <AreaChart data={cashFlowForecast} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
@@ -188,7 +188,7 @@ export default function Analytics() {
           <h3 className="text-lg font-bold text-slate-900 mb-2">توزيع قنوات التحصيل</h3>
           <p className="text-sm text-slate-500 mb-6">حسب أماكن الدفع في الفترة المحددة</p>
           <div className="h-[250px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <ResponsiveContainer width="100%" height={250} minWidth={0}>
               <PieChart>
                 <Pie
                   data={formattedChannels}
@@ -224,7 +224,7 @@ export default function Analytics() {
             </div>
           </div>
           <div className="h-[280px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <ResponsiveContainer width="100%" height={280} minWidth={0}>
               <BarChart data={overdueRisk} margin={{ top: 20, right: 30, left: 20, bottom: 5 }} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                 <XAxis type="number" tickFormatter={(val) => `${val / 1000}k`} tick={{fill: '#64748B'}} />

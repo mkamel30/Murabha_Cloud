@@ -10,7 +10,22 @@ export class AnalyticsService {
     const { startDate, endDate } = filters;
     const now = new Date();
 
-    const branchFilter = branchId && branchId !== 'ALL' ? { branchId } : {};
+    let branchSaleIds: string[] | null = null;
+    if (branchId && branchId !== 'ALL') {
+      try {
+        const sales = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          `SELECT id FROM MachineSale WHERE branchId = '${branchId.replace(/'/g, "''")}'`
+        );
+        branchSaleIds = sales.map(s => s.id);
+      } catch (_) {
+        branchSaleIds = [];
+      }
+    }
+
+    const saleBranchFilter = branchId && branchId !== 'ALL' ? { branchId } : {};
+    const saleRelationFilter = branchSaleIds !== null
+      ? { saleId: { in: branchSaleIds.length > 0 ? branchSaleIds : ['__NONE__'] } }
+      : {};
 
     // Base conditions for date filtering where applicable
     const dateCondition = {
@@ -24,7 +39,7 @@ export class AnalyticsService {
     const salesFilter = hasDateCondition ? { saleDate: dateCondition } : {};
     const totalSales = await prisma.machineSale.aggregate({
       _sum: { totalPrice: true, downPayment: true },
-      where: { status: 'ACTIVE', ...branchFilter, ...salesFilter }
+      where: { status: 'ACTIVE', ...saleBranchFilter, ...salesFilter }
     });
 
     // 2. KPI: Collections (Payments made in this period)
@@ -32,7 +47,7 @@ export class AnalyticsService {
     const collections = await prisma.payment.groupBy({
       by: ['paymentType'],
       _sum: { amount: true },
-      where: { ...branchFilter, ...paymentsFilter }
+      where: { ...saleRelationFilter, ...paymentsFilter }
     });
 
     const totalDownPaymentsCollected = Number(collections.find(c => c.paymentType === 'DOWN_PAYMENT')?._sum.amount || 0);
@@ -42,14 +57,14 @@ export class AnalyticsService {
     const dueInstallmentsFilter = hasDateCondition ? { dueDate: dateCondition } : {};
     const expectedInstallments = await prisma.installment.aggregate({
       _sum: { amount: true },
-      where: { ...branchFilter, sale: { status: 'ACTIVE' }, ...dueInstallmentsFilter }
+      where: { ...saleRelationFilter, sale: { status: 'ACTIVE' }, ...dueInstallmentsFilter }
     });
 
     // 4. Payment Channels Distribution
     const paymentChannelsData = await prisma.payment.groupBy({
       by: ['paymentPlace'],
       _sum: { amount: true },
-      where: { ...branchFilter, ...paymentsFilter }
+      where: { ...saleRelationFilter, ...paymentsFilter }
     });
     
     const paymentChannels = paymentChannelsData.map(p => ({
@@ -60,7 +75,7 @@ export class AnalyticsService {
     // 5. Overdue Risk (Aging) - Independent of the selected date filter usually, but we consider all overdue till now.
     const overdueInstallments = await prisma.installment.findMany({
       where: {
-        ...branchFilter,
+        ...saleRelationFilter,
         isPaid: false,
         dueDate: { lt: new Date(now.setHours(0,0,0,0)) },
         sale: { status: 'ACTIVE' }
@@ -96,7 +111,7 @@ export class AnalyticsService {
     const next6Months = new Date(now.getFullYear(), now.getMonth() + 6, 1);
     const upcomingInstallments = await prisma.installment.findMany({
       where: {
-        ...branchFilter,
+        ...saleRelationFilter,
         isPaid: false,
         dueDate: { 
           gte: new Date(now.getFullYear(), now.getMonth(), 1), // from start of current month
@@ -126,7 +141,7 @@ export class AnalyticsService {
     // In SQLite, complex groupBy with relations can be tricky, so we'll fetch unpaid overdue and group in memory
     const defaultingSales = await prisma.machineSale.findMany({
       where: {
-        ...branchFilter,
+        ...saleBranchFilter,
         status: 'ACTIVE',
         installments: {
           some: {

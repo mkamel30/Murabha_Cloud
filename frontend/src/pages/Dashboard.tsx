@@ -227,7 +227,7 @@ export default function Dashboard() {
           <h3 className="text-sm font-semibold text-slate-700 mb-4">المبيعات</h3>
           <div className="h-64 min-h-[256px] w-full min-w-0">
             {salesPieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+              <ResponsiveContainer width="100%" height={240} minWidth={0}>
                 <PieChart>
                   <Pie
                     data={salesPieData}
@@ -258,7 +258,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 min-w-0">
           <h3 className="text-sm font-semibold text-slate-700 mb-4">المحفظة</h3>
           <div className="h-64 min-h-[256px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+            <ResponsiveContainer width="100%" height={240} minWidth={0}>
               <PieChart>
                 <Pie
                   data={collectionsPieData}
@@ -285,7 +285,7 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 min-w-0">
         <h3 className="text-sm font-semibold text-slate-700 mb-4">الأقساط</h3>
         <div className="h-64 min-h-[256px] w-full min-w-0">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+          <ResponsiveContainer width="100%" height={240} minWidth={0}>
             <BarChart data={overdueBarData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" tickFormatter={(v) => formatCurrency(v)} />
