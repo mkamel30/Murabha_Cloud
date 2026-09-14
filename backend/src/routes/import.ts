@@ -5,75 +5,145 @@ import XLSX from 'xlsx';
 import { addMonths } from '../utils/helpers.js';
 import { requireRoles } from '../middleware/auth.js';
 import { UserRole } from '../entities/User.js';
+import { isValid } from 'date-fns';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-import { isValid, parse } from 'date-fns';
+const ROUNDING_TOLERANCE = 5.0; // Allow small rounding differences (in EGP)
 
-function parseDate(dateStr: string | number): Date | null {
-  if (!dateStr && dateStr !== 0) return null;
+/**
+ * Parses a date from an Excel serial number or common string formats.
+ * Accepts dates between years 2000 and 2050.
+ */
+function parseDate(dateVal: unknown): Date | null {
+  if (dateVal === null || dateVal === undefined || dateVal === '') return null;
+
   try {
-    // Handle Excel serial date number
-    if (typeof dateStr === 'number') {
-      const excelEpoch = new Date(1899, 11, 30);
-      const date = new Date(excelEpoch.getTime() + dateStr * 24 * 60 * 60 * 1000);
-      if (isValid(date) && date.getFullYear() > 2000 && date.getFullYear() < 2050) return date;
+    // 1. Excel serial date number
+    if (typeof dateVal === 'number') {
+      if (isNaN(dateVal) || dateVal <= 0) return null;
+      // Excel serial 1 = 1900-01-01; adjust for 1900 leap-year bug (epoch 1899-12-30)
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      const ms = excelEpoch.getTime() + Math.round(dateVal * 86400000);
+      const d = new Date(ms);
+      if (isValid(d) && d.getUTCFullYear() >= 2000 && d.getUTCFullYear() <= 2050) {
+        return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      }
       return null;
     }
-    
-    const str = String(dateStr).trim();
-    const parts = str.split(/[-/\.]/);
-    
+
+    const str = String(dateVal).trim();
+    if (!str) return null;
+
+    // 2. Delimited date strings: DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY, DD.MM.YYYY
+    const parts = str.split(/[-/\.]/).map(p => p.trim());
     if (parts.length === 3) {
-      let p1 = Number(parts[0]);
-      let p2 = Number(parts[1]);
-      let p3 = Number(parts[2]);
-      
-      // Heuristics
-      let day, month, year;
-      if (p3 > 1000) {
-        year = p3;
-        if (p1 > 12) { day = p1; month = p2; }
-        else if (p2 > 12) { day = p2; month = p1; }
-        else { day = p1; month = p2; } // Default DD-MM-YYYY
-      } else if (p1 > 1000) {
-        year = p1;
-        if (p2 > 12) { day = p2; month = p3; }
-        else if (p3 > 12) { day = p3; month = p2; }
-        else { day = p3; month = p2; } // Default YYYY-MM-DD
-      } else {
-        year = p3 < 50 ? 2000 + p3 : 1900 + p3;
-        if (p1 > 12) { day = p1; month = p2; }
-        else if (p2 > 12) { day = p2; month = p1; }
-        else { day = p1; month = p2; }
-      }
-      
-      const date = new Date(year, month - 1, day);
-      if (isValid(date) && date.getFullYear() > 2000 && date.getFullYear() < 2050 && date.getMonth() === month - 1) {
-        return date;
+      const p1 = parseInt(parts[0], 10);
+      const p2 = parseInt(parts[1], 10);
+      const p3 = parseInt(parts[2], 10);
+
+      if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
+        let day: number, month: number, year: number;
+
+        if (p3 >= 1000) {
+          // Format: DD-MM-YYYY or MM-DD-YYYY
+          year = p3;
+          if (p1 > 12) {
+            day = p1;
+            month = p2;
+          } else if (p2 > 12) {
+            day = p2;
+            month = p1;
+          } else {
+            // Default DD-MM-YYYY
+            day = p1;
+            month = p2;
+          }
+        } else if (p1 >= 1000) {
+          // Format: YYYY-MM-DD
+          year = p1;
+          month = p2;
+          day = p3;
+        } else {
+          // Two-digit year
+          year = p3 < 50 ? 2000 + p3 : 1900 + p3;
+          if (p1 > 12) {
+            day = p1;
+            month = p2;
+          } else if (p2 > 12) {
+            day = p2;
+            month = p1;
+          } else {
+            day = p1;
+            month = p2;
+          }
+        }
+
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 2000 && year <= 2050) {
+          const d = new Date(year, month - 1, day);
+          if (isValid(d) && d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day) {
+            return d;
+          }
+        }
       }
     }
-    
-    const d = new Date(str);
-    if (isValid(d) && d.getFullYear() > 2000 && d.getFullYear() < 2050) return d;
+
+    // 3. Fallback standard Date parse
+    const fallback = new Date(str);
+    if (isValid(fallback) && fallback.getFullYear() >= 2000 && fallback.getFullYear() <= 2050) {
+      return fallback;
+    }
+
     return null;
   } catch {
     return null;
   }
 }
 
+/**
+ * Parses numeric cell values, cleaning comma separators and whitespace.
+ * Returns null if invalid or negative.
+ */
+function parseNumber(val: unknown, defaultValue: number | null = 0): number | null {
+  if (val === null || val === undefined || val === '') {
+    return defaultValue;
+  }
+  if (typeof val === 'number') {
+    return isFinite(val) && val >= 0 ? val : null;
+  }
+  const cleanStr = String(val).replace(/,/g, '').trim();
+  if (cleanStr === '') return defaultValue;
+  const num = Number(cleanStr);
+  return !isNaN(num) && isFinite(num) && num >= 0 ? num : null;
+}
+
+/**
+ * Generates unique receipt numbers with entropy to prevent collisions across bulk imports.
+ */
+function generateReceiptNumber(prefix: string, rowNum: number, suffix = ''): string {
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const time = Date.now().toString(36).toUpperCase();
+  return `${prefix}-${time}-${rowNum}${suffix ? '-' + suffix : ''}-${rand}`;
+}
+
 router.post('/preview', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserRole.BRANCH_MANAGER), upload.single('file'), async (req: Request, res: Response) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (!req.file) {
+      res.status(400).json({ error: 'لم يتم رفع أي ملف' });
+      return;
+    }
 
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 }) as unknown[][];
 
-    if (data.length < 2) return res.status(400).json({ error: 'File is empty' });
+    if (data.length < 2) {
+      res.status(400).json({ error: 'الملف فارغ أو لا يحتوي على صفوف بيانات' });
+      return;
+    }
 
-    const headers = (data[0] as string[]).map(h => String(h).trim());
+    const headers = (data[0] as string[]).map(h => String(h || '').trim());
     const saleDateIdx = headers.findIndex(h => h.includes('تاريخ البيع') || h.toLowerCase().includes('sale date'));
     const lastDateIdx = headers.findIndex(h => h.includes('آخر قسط') || h.includes('آخر دفعة') || h.toLowerCase().includes('last payment'));
 
@@ -84,12 +154,12 @@ router.post('/preview', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, 
     for (let i = 1; i < Math.min(data.length, 11); i++) {
       const row = data[i];
       if (!row || row.length === 0) continue;
-      
+
       const saleDateStr = saleDateIdx >= 0 ? row[saleDateIdx] : '';
       const lastDateStr = lastDateIdx >= 0 ? row[lastDateIdx] : '';
-      
-      const parsedSale = saleDateStr ? parseDate(saleDateStr as string | number) : null;
-      const parsedLast = lastDateStr ? parseDate(lastDateStr as string | number) : null;
+
+      const parsedSale = parseDate(saleDateStr);
+      const parsedLast = parseDate(lastDateStr);
 
       previewRows.push({
         rowNum: i + 1,
@@ -99,20 +169,21 @@ router.post('/preview', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, 
         lastDateParsed: parsedLast ? parsedLast.toISOString() : null
       });
 
-      if (saleDateStr && !parsedSale) dateWarnings.push(`السطر ${i+1}: لم يتم التعرف على تاريخ البيع "${saleDateStr}"`);
-      if (lastDateStr && !parsedLast) dateWarnings.push(`السطر ${i+1}: لم يتم التعرف على تاريخ آخر قسط "${lastDateStr}"`);
+      if (saleDateStr && !parsedSale) dateWarnings.push(`السطر ${i + 1}: لم يتم التعرف على تاريخ البيع "${saleDateStr}"`);
+      if (lastDateStr && !parsedLast) dateWarnings.push(`السطر ${i + 1}: لم يتم التعرف على تاريخ آخر قسط "${lastDateStr}"`);
     }
 
     res.json({ previewRows, dateWarnings });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to generate preview' });
+    console.error('Preview error:', error);
+    res.status(500).json({ error: 'فشل إنشاء معاينة للملف' });
   }
 });
 
 router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserRole.BRANCH_MANAGER), upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      res.status(400).json({ error: 'No file uploaded' });
+      res.status(400).json({ error: 'لم يتم رفع أي ملف' });
       return;
     }
 
@@ -122,11 +193,11 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
     const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][];
 
     if (data.length < 2) {
-      res.status(400).json({ error: 'File is empty or has no data rows' });
+      res.status(400).json({ error: 'الملف فارغ أو لا يحتوي على صفوف بيانات' });
       return;
     }
 
-    const headers = (data[0] as string[]).map(h => String(h).trim());
+    const headers = (data[0] as string[]).map(h => String(h || '').trim());
     console.log('Raw Excel headers:', headers);
 
     const columnMap: Record<string, number> = {
@@ -163,11 +234,11 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
       if (columnMap.customerName === -1) missing.push('اسم العميل');
       if (columnMap.machineSerial === -1) missing.push('السيريال');
       if (columnMap.saleDate === -1) missing.push('تاريخ البيع');
-      if (columnMap.totalPrice === -1) missing.push('الإجمالي');
+      if (columnMap.totalPrice === -1) missing.push('قيمة العقد / الإجمالي');
       if (columnMap.paidAmount === -1) missing.push('إجمالي الأقساط المحصلة');
       if (columnMap.downPayment === -1) missing.push('المقدم');
       if (columnMap.months === -1) missing.push('عدد الأقساط');
-      if (columnMap.monthlyInstallment === -1) missing.push('قسط');
+      if (columnMap.monthlyInstallment === -1) missing.push('القسط الشهري');
 
       console.error('Missing mandatory columns:', missing);
       res.status(400).json({ error: `الملف ينقصه أعمدة إجبارية: ${missing.join('، ')}` });
@@ -184,42 +255,55 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
 
     for (let i = 1; i < data.length; i++) {
       const row = data[i] as (string | number)[];
-      if (!row[columnMap.bkCode] && !row[columnMap.customerName]) continue;
+      if (!row || (!row[columnMap.bkCode] && !row[columnMap.customerName])) continue;
 
       const bkCode = String(row[columnMap.bkCode] || '').trim();
       const customerType = columnMap.customerType >= 0 ? String(row[columnMap.customerType] || 'عام').trim() : 'عام';
       const customerName = String(row[columnMap.customerName] || '').trim();
       const department = columnMap.department >= 0 ? String(row[columnMap.department] || '').trim() : '';
       const machineSerial = columnMap.machineSerial >= 0 ? String(row[columnMap.machineSerial] || '').trim() : '';
-      const totalPrice = columnMap.totalPrice >= 0 ? Number(row[columnMap.totalPrice]) || 0 : 0;
-      const paidAmount = columnMap.paidAmount >= 0 ? Number(row[columnMap.paidAmount]) || 0 : 0;
-      const downPayment = columnMap.downPayment >= 0 ? Number(row[columnMap.downPayment]) || 0 : 0;
-      const monthlyInstallment = columnMap.monthlyInstallment >= 0 ? Number(row[columnMap.monthlyInstallment]) || 0 : 0;
-      const rowMonths = columnMap.months >= 0 ? Number(row[columnMap.months]) || 0 : 0;
-      const lastPaymentDateStr = columnMap.lastPaymentDate >= 0 ? row[columnMap.lastPaymentDate] : '';
-      const notes = columnMap.notes >= 0 ? String(row[columnMap.notes] || '') : '';
 
+      // Numeric validations
+      const totalPrice = parseNumber(row[columnMap.totalPrice], null);
+      const paidAmount = parseNumber(row[columnMap.paidAmount], null);
+      const downPayment = parseNumber(row[columnMap.downPayment], null);
+      const monthlyInstallment = parseNumber(row[columnMap.monthlyInstallment], null);
+      const rowMonths = parseNumber(row[columnMap.months], null);
+      const notes = columnMap.notes >= 0 ? String(row[columnMap.notes] || '').trim() : '';
+
+      // Check required text & numeric presence
+      if (!bkCode || !customerName || !machineSerial) {
+        results.errors.push(`السطر ${i + 1}: يوجد حقول إجبارية نصية فارغة (كود العميل، الاسم، أو السيريال)`);
+        continue;
+      }
+
+      if (totalPrice === null || totalPrice <= 0) {
+        results.errors.push(`السطر ${i + 1}: قيمة العقد غير صحيحة أو أقل من أو تساوي صفر`);
+        continue;
+      }
+
+      if (paidAmount === null || downPayment === null || monthlyInstallment === null || rowMonths === null) {
+        results.errors.push(`السطر ${i + 1}: قيم مالية غير صحيحة أو سالبة (المقدم، المحصل، القسط، أو عدد الأشهر)`);
+        continue;
+      }
+
+      // Date validations
+      const saleDateRaw = row[columnMap.saleDate];
+      const saleDate = parseDate(saleDateRaw);
+      if (!saleDate) {
+        results.errors.push(`السطر ${i + 1}: تاريخ البيع غير صالح أو خارج النطاق ("${saleDateRaw || 'فارغ'}")`);
+        continue;
+      }
+
+      const lastPaymentDateStr = columnMap.lastPaymentDate >= 0 ? row[columnMap.lastPaymentDate] : null;
       const lastPaymentDate = parseDate(lastPaymentDateStr);
-      const saleDate = columnMap.saleDate >= 0 ? parseDate(row[columnMap.saleDate]) : new Date();
 
-      if (
-        !bkCode || 
-        !customerName || 
-        !machineSerial || 
-        row[columnMap.saleDate] === undefined || 
-        row[columnMap.saleDate] === '' ||
-        row[columnMap.totalPrice] === undefined || 
-        row[columnMap.totalPrice] === '' ||
-        row[columnMap.paidAmount] === undefined || 
-        row[columnMap.paidAmount] === '' ||
-        row[columnMap.downPayment] === undefined || 
-        row[columnMap.downPayment] === '' ||
-        row[columnMap.months] === undefined || 
-        row[columnMap.months] === '' ||
-        row[columnMap.monthlyInstallment] === undefined || 
-        row[columnMap.monthlyInstallment] === ''
-      ) {
-        results.errors.push(`السطر ${i + 1}: يوجد حقول إجبارية فارغة`);
+      // Business logic validation
+      const totalActualPaid = downPayment + paidAmount;
+      if (totalActualPaid - totalPrice > ROUNDING_TOLERANCE) {
+        results.errors.push(
+          `السطر ${i + 1}: مجموع المدفوع (${totalActualPaid.toFixed(2)}) يتجاوز إجمالي العقد (${totalPrice.toFixed(2)}) بأكثر من حد السماح (${ROUNDING_TOLERANCE} ج.م)`
+        );
         continue;
       }
 
@@ -243,60 +327,62 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
           results.customersFound++;
         }
 
-        const isCash = paidAmount >= totalPrice;
-        const expectedDownPayment = downPayment;
-        // Total paid is the sum of Down Payment AND Collected Installments from Excel
-        const totalActualPaid = expectedDownPayment + paidAmount;
-        const remainingAfterAllPaid = isCash ? 0 : totalPrice - totalActualPaid;
-        
-        let months = rowMonths;
+        const isCash = (rowMonths <= 0 && monthlyInstallment <= 0) || (downPayment >= totalPrice - ROUNDING_TOLERANCE);
+        const remainingAfterAllPaid = Math.max(0, Math.round((totalPrice - totalActualPaid) * 100) / 100);
+
+        let months = Math.round(rowMonths);
         if (!isCash && months <= 0 && monthlyInstallment > 0) {
-          const toInstall = totalPrice - expectedDownPayment;
+          const toInstall = totalPrice - downPayment;
           months = Math.round(toInstall / monthlyInstallment);
           if (months === 0 && toInstall > 0) months = 1;
         }
 
-        const receiptNumber = `OLD-${Date.now()}-${i}`;
+        if (!isCash && months <= 0) {
+          results.errors.push(`السطر ${i + 1}: عدد الأقساط غير محدد أو غير كافٍ لعملية التقسيط`);
+          continue;
+        }
+
+        const receiptNumber = generateReceiptNumber('OLD', i + 1);
 
         const sale = await prisma.machineSale.create({
           data: {
             receiptNumber,
             customerId: customer.id,
-            machineSerial: machineSerial || `M-${Date.now()}`,
+            machineSerial,
             saleType: isCash ? 'CASH' : 'INSTALLMENT',
             totalPrice,
-            downPayment: expectedDownPayment,
+            downPayment,
             paidAmount: totalActualPaid,
-            remainingAmount: Math.max(0, remainingAfterAllPaid),
+            remainingAmount: remainingAfterAllPaid,
             paymentPlace: 'dhamen',
             notes: notes || 'مستورد من ملف قديم',
-            saleDate: saleDate ? new Date(saleDate) : new Date(),
-            firstDueDate: months > 0 && saleDate ? addMonths(new Date(saleDate), 2) : undefined,
-            months,
+            saleDate,
+            firstDueDate: !isCash && months > 0 ? addMonths(saleDate, 2) : undefined,
+            months: isCash ? 0 : months,
             status: remainingAfterAllPaid <= 0.01 ? 'COMPLETED' : 'ACTIVE',
             branchId: req.branchId || (customer as any).branchId || undefined,
           } as any
         });
 
         results.salesCreated++;
- 
+
         if (!isCash && months > 0) {
           const installments = [];
-          const startDate = sale.firstDueDate ? new Date(sale.firstDueDate) : new Date();
+          const startDate = sale.firstDueDate ? new Date(sale.firstDueDate) : addMonths(saleDate, 2);
           let currentDate = new Date(startDate);
           
-          const toInstall = totalPrice - expectedDownPayment;
-          const instAmount = monthlyInstallment > 0 ? monthlyInstallment : Math.round((toInstall / months) * 100) / 100;
+          const toInstall = Math.max(0, totalPrice - downPayment);
+          const baseInstAmount = monthlyInstallment > 0 ? monthlyInstallment : Math.round((toInstall / months) * 100) / 100;
           
           let extraCash = paidAmount;
           let remainingToDistribute = toInstall;
- 
-          // Calculate lastPaidIndex
+
+          // Determine last paid installment index for attaching lastPaymentDate
           let tempExtra = paidAmount;
           let tempRemaining = toInstall;
           let lastPaidIndex = 0;
           for (let m = 1; m <= months; m++) {
-            const fullAmount = m === months ? Math.round(tempRemaining * 100) / 100 : instAmount;
+            const fullAmount = m === months ? Math.round(tempRemaining * 100) / 100 : baseInstAmount;
             const applied = Math.min(tempExtra, fullAmount);
             if (applied > 0) {
               lastPaidIndex = m;
@@ -304,22 +390,22 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
             tempRemaining -= fullAmount;
             tempExtra -= applied;
           }
-  
+
           for (let m = 1; m <= months; m++) {
-            const fullAmount = m === months ? Math.round(remainingToDistribute * 100) / 100 : instAmount;
+            const fullAmount = m === months ? Math.round(remainingToDistribute * 100) / 100 : baseInstAmount;
             const appliedExtra = Math.min(extraCash, fullAmount);
             const isFullyPaidByExtra = appliedExtra >= fullAmount - 0.01;
 
-            const instReceiptNumber = isFullyPaidByExtra ? `PAY-${Date.now()}-${i}-INST-${m}` : null;
+            const instReceiptNumber = isFullyPaidByExtra ? generateReceiptNumber('PAY', i + 1, `INST-${m}`) : null;
             const instPaidDate = isFullyPaidByExtra 
               ? (m === lastPaidIndex && lastPaymentDate ? lastPaymentDate : new Date(currentDate)) 
               : null;
- 
+
             let paymentId: string | null = null;
             if (appliedExtra > 0) {
               const createdPayment = await prisma.payment.create({
                 data: {
-                  receiptNumber: instReceiptNumber || `PAY-${Date.now()}-${i}-INST-${m}`,
+                  receiptNumber: instReceiptNumber || generateReceiptNumber('PAY', i + 1, `PART-${m}`),
                   saleId: sale.id,
                   paymentType: 'INSTALLMENT',
                   amount: appliedExtra,
@@ -344,7 +430,7 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
               receiptNumber: instReceiptNumber,
               paymentId,
             });
- 
+
             remainingToDistribute -= fullAmount;
             extraCash -= appliedExtra;
             currentDate = addMonths(currentDate, 1);
@@ -354,38 +440,37 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
           results.installmentsCreated += installments.length;
         }
 
+        // Record initial payments
         if (totalActualPaid > 0) {
           if (isCash) {
             await prisma.payment.create({
               data: {
-                receiptNumber: `PAY-${Date.now()}-${i}-CASH`,
+                receiptNumber: generateReceiptNumber('PAY', i + 1, 'CASH'),
                 saleId: sale.id,
                 paymentType: 'CASH_SALE',
                 amount: totalActualPaid,
                 paymentPlace: 'dhamen',
                 notes: 'مستورد من ملف قديم (كاش)',
-                paidAt: lastPaymentDate || saleDate || new Date(),
+                paidAt: lastPaymentDate || saleDate,
               }
             });
-          } else {
-            if (expectedDownPayment > 0) {
-              await prisma.payment.create({
-                data: {
-                  receiptNumber: `PAY-${Date.now()}-${i}-DP`,
-                  saleId: sale.id,
-                  paymentType: 'DOWN_PAYMENT',
-                  amount: expectedDownPayment,
-                  paymentPlace: 'dhamen',
-                  notes: 'مستورد من ملف قديم (مقدم)',
-                  paidAt: saleDate || new Date(),
-                }
-              });
-            }
+          } else if (downPayment > 0) {
+            await prisma.payment.create({
+              data: {
+                receiptNumber: generateReceiptNumber('PAY', i + 1, 'DP'),
+                saleId: sale.id,
+                paymentType: 'DOWN_PAYMENT',
+                amount: downPayment,
+                paymentPlace: 'dhamen',
+                notes: 'مستورد من ملف قديم (مقدم)',
+                paidAt: saleDate,
+              }
+            });
           }
         }
 
       } catch (err) {
-        results.errors.push(`Row ${i + 1}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        results.errors.push(`السطر ${i + 1}: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
       }
     }
 
@@ -397,12 +482,11 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
 
   } catch (error) {
     console.error('Excel import error:', error);
-    res.status(500).json({ error: 'Failed to import Excel file' });
+    res.status(500).json({ error: 'فشل استيراد ملف الإكسيل' });
   }
 });
 
 router.get('/template', async (req: Request, res: Response) => {
-  // Note: Use Excel date column (serial number) or string format DD-MM-YYYY
   const template = [
     ['كود العميل', 'نوع العميل', 'الإدارة', 'اسم العميل', 'السيريال', 'تاريخ البيع القديم', 'إجمالي قيمة العقد', 'إجمالي الأقساط المحصلة', 'المقدم', 'عدد الأقساط', 'قيمة القسط الشهري', 'تاريخ آخر قسط مدفوع', 'ملاحظات'],
     ['C001', 'مخبز', 'إدارة 1', 'أحمد محمد', 'SN123456', '01-01-2024', '10000', '5000', '3000', '7', '1000', '15-03-2024', 'ملاحظة اختيارية'],
