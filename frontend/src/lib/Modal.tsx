@@ -5,29 +5,50 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  zIndex?: string;
+  maxWidth?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+let activeModalsCount = 0;
+const modalStack: (() => void)[] = [];
+
+export function Modal({ isOpen, onClose, title, children, zIndex = 'z-50', maxWidth = 'max-w-lg' }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && modalStack.length > 0) {
+        const topOnClose = modalStack[modalStack.length - 1];
+        if (topOnClose === onClose) {
+          onClose();
+        }
+      }
     };
+
     if (isOpen) {
+      modalStack.push(onClose);
+      activeModalsCount++;
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
     }
+
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      if (isOpen) {
+        const index = modalStack.lastIndexOf(onClose);
+        if (index !== -1) modalStack.splice(index, 1);
+        activeModalsCount = Math.max(0, activeModalsCount - 1);
+        document.removeEventListener('keydown', handleEscape);
+        if (activeModalsCount === 0) {
+          document.body.style.overflow = 'unset';
+        }
+      }
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" role="presentation">
+    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center`} role="presentation">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
@@ -36,7 +57,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       
       <div
         ref={modalRef}
-        className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden animate-scale-in"
+        className={`relative bg-white rounded-xl shadow-2xl w-full ${maxWidth} mx-4 max-h-[90vh] overflow-hidden animate-scale-in`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"

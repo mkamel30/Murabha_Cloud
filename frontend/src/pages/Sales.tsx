@@ -11,6 +11,7 @@ import { PrimaryButton, SecondaryButton, PageHeader, EmptyState, TableActions } 
 import { PaymentPlaceSelect } from '@/lib/PaymentPlace';
 import { SearchFilterBar } from '@/lib/SearchFilterBar';
 import { SmartSelect } from '@/lib/SmartSelect';
+import { QuickAddCustomerModal } from '@/components/QuickAddCustomerModal';
 
 type SaleStatusFilter = '' | 'ACTIVE' | 'COMPLETED' | 'VOIDED';
 type SaleTypeFilter = '' | 'CASH' | 'INSTALLMENT';
@@ -30,6 +31,7 @@ export default function Sales() {
   );
   const [typeFilter, setTypeFilter] = useState<SaleTypeFilter>('');
   const [showModal, setShowModal] = useState(false);
+  const [showQuickCustomerModal, setShowQuickCustomerModal] = useState(false);
   const [formData, setFormData] = useState({
     customerId: '',
     machineSerial: '',
@@ -171,6 +173,13 @@ export default function Sales() {
     setFormData(prev => ({ ...prev, saleType: 'INSTALLMENT' }));
   };
 
+  const handleQuickCustomerCreated = (newCustomer: Customer) => {
+    setCustomers(prev => [newCustomer, ...prev]);
+    setFormData(prev => ({ ...prev, customerId: newCustomer.id }));
+    setShowQuickCustomerModal(false);
+    showToast('تمت إضافة العميل واختياره بنجاح', 'success');
+  };
+
   if (loading) {
     return <LoadingScreen message={ar.common.loading} />;
   }
@@ -300,8 +309,8 @@ export default function Sales() {
                   <label className="block text-sm font-bold text-gray-700">{ar.sales.selectCustomer}</label>
                   <button 
                     type="button" 
-                    onClick={() => navigate('/customers')}
-                    className="text-xs text-[#0A2472] hover:underline flex items-center gap-1"
+                    onClick={() => setShowQuickCustomerModal(true)}
+                    className="text-xs text-[#0A2472] hover:underline flex items-center gap-1 font-semibold"
                   >
                     + {ar.customers.addNew}
                   </button>
@@ -599,6 +608,12 @@ export default function Sales() {
           </div>
         </form>
       </Modal>
+
+      <QuickAddCustomerModal
+        isOpen={showQuickCustomerModal}
+        onClose={() => setShowQuickCustomerModal(false)}
+        onSuccess={handleQuickCustomerCreated}
+      />
     </div>
   );
 }
