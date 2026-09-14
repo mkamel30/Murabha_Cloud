@@ -285,62 +285,6 @@ export default function SettingsPage() {
                   </div>
                 )}
               </div>
-
-              {/* Card 4: Excel Correction */}
-              <div className="border border-slate-100 rounded-xl overflow-hidden transition-all shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => toggleHelpTab('excelCorrection')}
-                  className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100/70 transition-colors text-right cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-                      ٤
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">التصحيح الجماعي للأقساط بملف إكسيل</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">آلية التحديث الجماعي السريع للإيصالات والتواريخ</p>
-                    </div>
-                  </div>
-                  {activeHelpTab === 'excelCorrection' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                </button>
-
-                {activeHelpTab === 'excelCorrection' && (
-                  <div className="p-5 border-t border-slate-100 bg-white space-y-4 animate-in fade-in duration-200">
-                    <div className="flex gap-4 flex-wrap md:flex-nowrap items-center justify-between">
-                      <div className="flex-1 space-y-4 pr-2">
-                        <div className="flex gap-3 items-start">
-                          <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black mt-0.5 shadow-sm">1</div>
-                          <p className="text-sm text-slate-600 font-semibold">من صفحة الأقساط، اضغط على زر **"تصدير للتصحيح (Excel)"** لتنزيل الملف الحالي.</p>
-                        </div>
-                        <div className="flex gap-3 items-start">
-                          <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black mt-0.5 shadow-sm">2</div>
-                          <p className="text-sm text-slate-600 font-semibold">افتح الملف على جهازك وحدث أرقام الإيصالات، أو التواريخ، أو حالة الدفع (نعم / لا).</p>
-                        </div>
-                        <div className="flex gap-3 items-start">
-                          <div className="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-black mt-0.5 shadow-sm">!</div>
-                          <p className="text-sm text-red-600 font-bold">تنبيه هام جداً: لا تعدل أبداً محتوى عمود "معرف القسط (Installment ID)" لتتم مطابقة البيانات بشكل سليم.</p>
-                        </div>
-                        <div className="flex gap-3 items-start">
-                          <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black mt-0.5 shadow-sm">3</div>
-                          <p className="text-sm text-slate-600 font-semibold">احفظ الملف، ثم اذهب لصفحة الأقساط واضغط **"رفع ملف الأقساط المصححة"** للتطبيق الفوري بلحظة واحدة.</p>
-                        </div>
-                      </div>
-
-                      <div className="w-full md:w-56 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 flex flex-col justify-center text-center">
-                        <span className="text-xs font-black text-indigo-700 tracking-wider mb-2 uppercase">مخطط التحديث الجماعي</span>
-                        <div className="space-y-1 text-xs">
-                          <div className="p-1 bg-white rounded border border-indigo-200 font-bold text-slate-700">تصدير الأقساط الحالية</div>
-                          <div className="text-indigo-400 font-bold">⬇️</div>
-                          <div className="p-1 bg-white rounded border border-indigo-200 font-bold text-slate-700">تعديل الإيصالات والتواريخ</div>
-                          <div className="text-indigo-400 font-bold">⬇️</div>
-                          <div className="p-1 bg-indigo-600 text-white rounded font-bold shadow-sm">الرفع والمطابقة السريعة بالـ ID</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
