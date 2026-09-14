@@ -6,13 +6,15 @@ const exportService = new ExportService();
 
 router.get('/sales', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, saleType } = req.query;
     const workbook = await exportService.exportSales(
       startDate ? new Date(startDate as string) : undefined,
-      endDate ? new Date(endDate as string) : undefined
+      endDate ? new Date(endDate as string) : undefined,
+      saleType as string | undefined
     );
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=sales.xlsx');
+    const filename = saleType === 'CASH' ? 'cash-sales.xlsx' : 'sales.xlsx';
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {

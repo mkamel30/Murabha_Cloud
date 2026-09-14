@@ -34,6 +34,7 @@ import importRouter from './routes/import.js';
 import rewardsRouter from './routes/rewards.js';
 import branchRouter from './routes/branch.js';
 import analyticsRouter from './routes/analytics.js';
+import settingsRouter from './routes/settings.js';
 
 import { authenticate } from './middleware/auth.js';
 import { branchScopeMiddleware } from './middleware/branchScope.js';
@@ -151,6 +152,7 @@ app.use('/api/import', importRouter);
 app.use('/api/rewards', rewardsRouter);
 app.use('/api/branch', branchRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/settings', settingsRouter);
 
 // Frontend Static Serving (if production build exists)
 if (process.env.NODE_ENV === 'production' || process.env.SERVE_FRONTEND === 'true') {

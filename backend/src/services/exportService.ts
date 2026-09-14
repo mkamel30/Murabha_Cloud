@@ -75,12 +75,15 @@ function getContractHeader(): string {
 }
 
 export class ExportService {
-  async exportSales(startDate?: Date, endDate?: Date) {
+  async exportSales(startDate?: Date, endDate?: Date, saleType?: string) {
     const where: Prisma.MachineSaleWhereInput = { status: { not: 'VOIDED' } };
     if (startDate || endDate) {
       where.saleDate = {};
       if (startDate) where.saleDate.gte = startDate;
       if (endDate) where.saleDate.lte = endDate;
+    }
+    if (saleType) {
+      where.saleType = saleType;
     }
 
     const sales = await prisma.machineSale.findMany({

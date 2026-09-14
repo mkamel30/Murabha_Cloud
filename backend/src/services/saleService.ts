@@ -3,6 +3,7 @@ import { SaleRepository, InstallmentRepository, PaymentRepository, CustomerRepos
 import { generateReceiptNumber, addMonths } from '../utils/helpers.js';
 import type { SaleInput } from '../validators/schemas.js';
 import prisma from '../lib/prisma.js';
+import { getSystemSetting } from '../routes/settings.js';
 
 const saleRepo = new SaleRepository();
 const installmentRepo = new InstallmentRepository();
@@ -38,10 +39,19 @@ export class SaleService {
       throw error;
     }
 
-    if (data.saleType === 'CASH' && data.downPayment > 0 && data.downPayment < data.totalPrice) {
-      const error = new Error('البيع النقدي يجب أن يكون الدفع كاملاً') as Error & { statusCode: number };
-      error.statusCode = 400;
-      throw error;
+    if (data.saleType === 'CASH') {
+      const isCashEnabled = await getSystemSetting('enableCashSales', 'false');
+      if (isCashEnabled !== 'true') {
+        const error = new Error('البيع النقدي (الكاش) غير مفعّل حالياً في إعدادات النظام') as Error & { statusCode: number };
+        error.statusCode = 400;
+        throw error;
+      }
+
+      if (data.downPayment > 0 && data.downPayment < data.totalPrice) {
+        const error = new Error('البيع النقدي يجب أن يكون الدفع كاملاً') as Error & { statusCode: number };
+        error.statusCode = 400;
+        throw error;
+      }
     }
 
     if (data.saleType === 'CASH' && !data.downPaymentReceipt) {
@@ -163,7 +173,30 @@ export class SaleService {
       }
 
       // 3. Record Actual Payment & Update Totals
-      if (actualAmountPaid > 0) {
+      if (data.saleType === 'CASH') {
+        const payReceipt = data.downPaymentReceipt || generateReceiptNumber('CSH');
+        await tx.machineSale.update({
+          where: { id: sale.id },
+          data: {
+            paidAmount: data.totalPrice,
+            remainingAmount: 0,
+            status: 'COMPLETED',
+            downPaymentReceipt: payReceipt,
+          },
+        });
+
+        await tx.payment.create({
+          data: {
+            receiptNumber: payReceipt,
+            saleId: sale.id,
+            paymentType: 'CASH_SALE',
+            amount: data.totalPrice,
+            paymentPlace: data.paymentPlace || null,
+            notes: data.notes || 'سداد بيع نقدي (كاش)',
+            paidAt: lastDepositDate,
+          },
+        });
+      } else if (actualAmountPaid > 0) {
         const payReceipt = data.downPaymentReceipt || generateReceiptNumber('PAY');
         
         // Final totals for the Sale record
@@ -189,7 +222,7 @@ export class SaleService {
           data: {
             receiptNumber: payReceipt,
             saleId: sale.id,
-            paymentType: data.saleType === 'CASH' ? 'CASH_SALE' : 'DOWN_PAYMENT',
+            paymentType: 'DOWN_PAYMENT',
             amount: dpToRecord,
             paymentPlace: data.paymentPlace || null,
             notes: 'دفعة مقدم التعاقد',

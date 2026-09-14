@@ -100,6 +100,12 @@ export const hqDashboardApi = {
   getHQStats: (branchId?: string) => api.get('/dashboard/hq', { params: { branchId } }).then((r) => r.data),
 };
 
+// ---- System Settings API ----
+export const settingsApi = {
+  getAll: () => api.get<Record<string, any>>('/settings').then((r) => r.data),
+  update: (key: string, value: any) => api.put(`/settings/${key}`, { value }).then((r) => r.data),
+};
+
 // ---- Core Operational APIs ----
 export const healthApi = {
   check: () => api.get('/health').then((r) => r.data),

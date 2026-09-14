@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { reportsApi, exportApi, customersApi } from '@/api/client';
+import { reportsApi, exportApi, customersApi, settingsApi } from '@/api/client';
 import { formatCurrency, formatDate, downloadBlob } from '@/lib/utils';
 import type { SalesReport, CollectionsReport, OverdueReport, Customer } from '@/types';
 import { ar } from '@/i18n/ar';
@@ -37,9 +37,10 @@ interface MonthClosingReport {
 export default function Reports() {
   const location = useLocation();
   const state = location.state as any;
-  const [reportType, setReportType] = useState<'sales' | 'collections' | 'overdue' | 'monthClosing' | 'collectionRatio'>(
+  const [reportType, setReportType] = useState<'sales' | 'cashSales' | 'collections' | 'overdue' | 'monthClosing' | 'collectionRatio'>(
     state?.reportType || 'sales'
   );
+  const [enableCashSales, setEnableCashSales] = useState(false);
   const [salesReport, setSalesReport] = useState<SalesReport | null>(null);
   const [collectionsReport, setCollectionsReport] = useState<CollectionsReport | null>(null);
   const [overdueReport, setOverdueReport] = useState<OverdueReport | null>(null);
@@ -77,6 +78,13 @@ export default function Reports() {
 
   useEffect(() => {
     loadCustomers();
+    settingsApi.getAll()
+      .then((settings) => {
+        if (settings && typeof settings.enableCashSales === 'boolean') {
+          setEnableCashSales(settings.enableCashSales);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const loadCustomers = async () => {
@@ -96,6 +104,13 @@ export default function Reports() {
           startDate: startDate || undefined, 
           endDate: endDate || undefined,
           saleType: saleTypeFilter || undefined
+        });
+        setSalesReport(data);
+      } else if (reportType === 'cashSales') {
+        const data = await reportsApi.sales({ 
+          startDate: startDate || undefined, 
+          endDate: endDate || undefined,
+          saleType: 'CASH'
         });
         setSalesReport(data);
       } else if (reportType === 'collections') {
@@ -140,6 +155,9 @@ export default function Reports() {
       if (reportType === 'sales') {
         blob = await exportApi.sales({ startDate: startDate || undefined, endDate: endDate || undefined });
         filename = `sales-report-${startDate || 'all'}-to-${endDate || 'now'}.xlsx`;
+      } else if (reportType === 'cashSales') {
+        blob = await exportApi.sales({ startDate: startDate || undefined, endDate: endDate || undefined, saleType: 'CASH' });
+        filename = `cash-sales-report-${startDate || 'all'}-to-${endDate || 'now'}.xlsx`;
       } else if (reportType === 'collections') {
         blob = await exportApi.collections({ startDate: startDate || undefined, endDate: endDate || undefined });
         filename = `collections-report-${startDate || 'all'}-to-${endDate || 'now'}.xlsx`;
@@ -199,6 +217,19 @@ export default function Reports() {
         >
           {ar.reports.salesReport}
         </button>
+        {enableCashSales && (
+          <button
+            onClick={() => setReportType('cashSales')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              reportType === 'cashSales'
+                ? 'bg-emerald-700 text-white shadow-sm'
+                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+            }`}
+          >
+            <Banknote className="w-4 h-4" />
+            <span>مبيعات الكاش</span>
+          </button>
+        )}
         <button
           onClick={() => setReportType('collections')}
           className={`px-4 py-2 rounded-lg text-sm font-medium ${
@@ -485,6 +516,99 @@ export default function Reports() {
             ))}
           </div>
         )}
+        </div>
+      )}
+
+      {/* Cash Sales Report View */}
+      {reportType === 'cashSales' && salesReport && (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-emerald-50 to-white rounded-xl shadow-sm border border-emerald-200 p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-emerald-700">إجمالي المبيعات النقدية (الكاش)</span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Banknote className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-emerald-900">{formatCurrency(salesReport.summary.totalPaid)}</div>
+              <p className="text-[11px] text-emerald-600 mt-1">المبالغ المسددة بالكامل وفورياً</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-500">عدد الماكينات المباعة كاش</span>
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+                  #
+                </div>
+              </div>
+              <div className="text-2xl font-black text-slate-800">{salesReport.sales.length} <span className="text-sm font-normal text-slate-500">ماكينة</span></div>
+              <p className="text-[11px] text-slate-400 mt-1">عمليات بيع نقدية مسجلة</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-500">متوسط سعر الماكينة كاش</span>
+                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                  %
+                </div>
+              </div>
+              <div className="text-2xl font-black text-slate-800">
+                {formatCurrency(salesReport.sales.length > 0 ? Math.round(salesReport.summary.totalPaid / salesReport.sales.length) : 0)}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">متوسط قيمة العملية النقدية</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-4 bg-slate-50/70 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2">
+              <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <Banknote className="w-4 h-4 text-emerald-600" />
+                <span>سجل المبيعات النقدية (الكاش)</span>
+              </h3>
+              <SecondaryButton onClick={handleExport} className="text-xs">
+                تصدير مبيعات الكاش (Excel)
+              </SecondaryButton>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 text-slate-600 text-xs font-bold">
+                  <tr>
+                    <th className="px-4 py-3 text-right">رقم الإيصال</th>
+                    <th className="px-4 py-3 text-right">اسم العميل</th>
+                    <th className="px-4 py-3 text-right">كود العميل</th>
+                    <th className="px-4 py-3 text-right">الإدارة</th>
+                    <th className="px-4 py-3 text-right">رقم الماكينة</th>
+                    <th className="px-4 py-3 text-right">تاريخ البيع</th>
+                    <th className="px-4 py-3 text-right">المبلغ المسدد كاش</th>
+                    <th className="px-4 py-3 text-right">مكان السداد</th>
+                    <th className="px-4 py-3 text-right">الملاحظات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {salesReport.sales.map((sale) => (
+                    <tr key={sale.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-slate-700">{sale.downPaymentReceipt || sale.receiptNumber}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{sale.customer?.name}</td>
+                      <td className="px-4 py-3 font-mono text-slate-600">{sale.customer?.bkCode}</td>
+                      <td className="px-4 py-3 text-slate-600">{sale.customer?.department || '-'}</td>
+                      <td className="px-4 py-3 font-mono text-slate-700">{sale.machineSerial}</td>
+                      <td className="px-4 py-3 text-slate-600">{formatDate(sale.saleDate)}</td>
+                      <td className="px-4 py-3 font-bold text-emerald-700">{formatCurrency(sale.totalPrice)}</td>
+                      <td className="px-4 py-3 text-slate-600">{sale.paymentPlace || 'ضامن'}</td>
+                      <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px] truncate">{sale.notes || '-'}</td>
+                    </tr>
+                  ))}
+                  {salesReport.sales.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                        لا توجد أي مبيعات نقدية (كاش) مسجلة في هذه الفترة
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 

@@ -72,6 +72,19 @@ const MIGRATIONS: Migration[] = [
       `ALTER TABLE FollowUp ADD COLUMN branchId TEXT;`,
       `CREATE INDEX IF NOT EXISTS idx_followup_branchId ON FollowUp(branchId);`
     ]
+  },
+  {
+    version: '1.0.8',
+    description: 'إضافة جدول إعدادات النظام وتفعيل/تعطيل البيع الكاش',
+    sql: [
+      `CREATE TABLE IF NOT EXISTS SystemSetting (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        description TEXT,
+        updatedAt TEXT DEFAULT (datetime('now'))
+      );`,
+      `INSERT OR IGNORE INTO SystemSetting (key, value, description) VALUES ('enableCashSales', 'false', 'تفعيل ميزة البيع النقدي (الكاش)');`
+    ]
   }
 ];
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { salesApi, customersApi } from '@/api/client';
+import { salesApi, customersApi, settingsApi } from '@/api/client';
 import { formatCurrency } from '@/lib/utils';
 import type { MachineSale, Customer } from '@/types';
 import { ar } from '@/i18n/ar';
@@ -22,6 +22,7 @@ export default function Sales() {
   const state = location.state as any;
   const [sales, setSales] = useState<MachineSale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [enableCashSales, setEnableCashSales] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<SaleStatusFilter>(
@@ -54,12 +55,19 @@ export default function Sales() {
     }
     if (step === 2) {
       if (formData.totalPrice <= 0) {
-        setError('إجمالي العقد يجب أن يكون أكبر من صفر');
+        setError('إجمالي القيمة يجب أن يكون أكبر من صفر');
         return;
       }
-      if (formData.saleType === 'INSTALLMENT' && (formData.months <= 0 || !formData.months)) {
-        setError('يرجى إدخال عدد الأشهر');
-        return;
+      if (formData.saleType === 'CASH') {
+        if (!formData.downPaymentReceipt || !formData.downPaymentReceipt.trim()) {
+          setError('يرجى إدخال رقم إيصال سداد المبلغ كاملاً');
+          return;
+        }
+      } else {
+        if (formData.months <= 0 || !formData.months) {
+          setError('يرجى إدخال عدد الأشهر');
+          return;
+        }
       }
     }
     setError('');
@@ -84,12 +92,16 @@ export default function Sales() {
 
   const loadData = async () => {
     try {
-      const [salesData, customersData] = await Promise.all([
+      const [salesData, customersData, settingsData] = await Promise.all([
         salesApi.getAll(),
         customersApi.getAll(),
+        settingsApi.getAll().catch(() => ({ enableCashSales: false })),
       ]);
       setSales(salesData);
       setCustomers(customersData);
+      if (settingsData && typeof settingsData.enableCashSales === 'boolean') {
+        setEnableCashSales(settingsData.enableCashSales);
+      }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -117,12 +129,15 @@ export default function Sales() {
     e.preventDefault();
     setError('');
     
+    const isCash = formData.saleType === 'CASH';
     const months = formData.months;
 
     try {
       await salesApi.create({
         ...formData,
-        months: formData.saleType === 'INSTALLMENT' ? months : undefined,
+        downPayment: isCash ? formData.totalPrice : formData.downPayment,
+        actualPaidAmount: isCash ? formData.totalPrice : formData.actualPaidAmount,
+        months: isCash ? undefined : months,
       });
       showToast(ar.common.success, 'success');
       setShowModal(false);
@@ -153,6 +168,7 @@ export default function Sales() {
     setShowModal(false);
     setStep(1);
     setError('');
+    setFormData(prev => ({ ...prev, saleType: 'INSTALLMENT' }));
   };
 
   if (loading) {
@@ -317,112 +333,193 @@ export default function Sales() {
                   required
                 />
               </div>
+
+              {enableCashSales && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">نوع العملية</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, saleType: 'INSTALLMENT' })}
+                      className={`py-2 px-3 rounded-lg text-sm font-bold border transition-all cursor-pointer ${
+                        formData.saleType === 'INSTALLMENT'
+                          ? 'bg-[#0A2472] text-white border-[#0A2472] shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      بيع بالتقسيط
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, saleType: 'CASH' })}
+                      className={`py-2 px-3 rounded-lg text-sm font-bold border transition-all cursor-pointer ${
+                        formData.saleType === 'CASH'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      بيع نقدي (كاش)
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {step === 2 && (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">إجمالي قيمة العقد</label>
-                <input
-                  type="number"
-                  value={formData.totalPrice || ''}
-                  onChange={(e) => setFormData({ ...formData, totalPrice: Number(e.target.value) })}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-lg font-black text-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  required
-                  min="0"
-                />
-              </div>
+              {formData.saleType === 'CASH' ? (
+                <div className="space-y-4">
+                  <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800 font-medium leading-relaxed">
+                    عملية بيع نقدي (كاش): يتم سداد كامل قيمة الماكينة فوراً وإغلاق العملية دون إنشاء جدول أقساط.
+                  </div>
 
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
-                 <div className="flex justify-between items-center">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">بيانات الدفعة الأولى</p>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">إجمالي سعر الماكينة (المسدد كاش)</label>
+                    <input
+                      type="number"
+                      value={formData.totalPrice || ''}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setFormData(prev => ({ ...prev, totalPrice: val, actualPaidAmount: val, downPayment: val }));
+                      }}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      className="w-full px-4 py-3 bg-emerald-50/50 border border-emerald-200 rounded-lg text-lg font-black text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      required
+                      min="1"
+                      placeholder="مثال: 25000"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">المبلغ المدفوع فعلياً الآن</label>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">رقم إيصال السداد الكامل</label>
                       <input
-                        type="number"
-                        value={formData.actualPaidAmount || ''}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setFormData(prev => ({ 
-                            ...prev, 
-                            actualPaidAmount: val, 
-                            downPayment: prev.downPayment === 0 || prev.downPayment === 3000 ? Math.min(val, 3000) : prev.downPayment 
-                          }));
-                        }}
-                        onWheel={(e) => e.currentTarget.blur()}
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-bold text-[#0A2472]"
-                        placeholder="مثلاً 7530"
+                        type="text"
+                        value={formData.downPaymentReceipt}
+                        onChange={(e) => setFormData({ ...formData, downPaymentReceipt: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium"
+                        required
+                        placeholder="مثال: CSH-1002"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">{ar.sales.downPayment} (التعاقدي)</label>
-                      <input
-                        type="number"
-                        value={formData.downPayment || ''}
-                        onChange={(e) => setFormData({ ...formData, downPayment: Number(e.target.value) })}
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-bold text-teal-700"
-                        placeholder="3000"
-                      />
-                    </div>
-                 </div>
-                 
-                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ استلام الدفعة</label>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ السداد</label>
                       <input
                         type="date"
                         value={formData.lastDepositDate}
                         onChange={(e) => setFormData({ ...formData, lastDepositDate: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">إجمالي قيمة العقد</label>
+                    <input
+                      type="number"
+                      value={formData.totalPrice || ''}
+                      onChange={(e) => setFormData({ ...formData, totalPrice: Number(e.target.value) })}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-lg font-black text-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      required
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">بيانات الدفعة الأولى</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">المبلغ المدفوع فعلياً الآن</label>
+                        <input
+                          type="number"
+                          value={formData.actualPaidAmount || ''}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              actualPaidAmount: val, 
+                              downPayment: prev.downPayment === 0 || prev.downPayment === 3000 ? Math.min(val, 3000) : prev.downPayment 
+                            }));
+                          }}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-bold text-[#0A2472]"
+                          placeholder="مثلاً 7530"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">{ar.sales.downPayment} (التعاقدي)</label>
+                        <input
+                          type="number"
+                          value={formData.downPayment || ''}
+                          onChange={(e) => setFormData({ ...formData, downPayment: Number(e.target.value) })}
+                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-bold text-teal-700"
+                          placeholder="3000"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ استلام الدفعة</label>
+                        <input
+                          type="date"
+                          value={formData.lastDepositDate}
+                          onChange={(e) => setFormData({ ...formData, lastDepositDate: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">رقم إيصال الدفعة الأولى</label>
+                        <input
+                          type="text"
+                          value={formData.downPaymentReceipt}
+                          onChange={(e) => setFormData({ ...formData, downPaymentReceipt: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm"
+                          placeholder="اختياري"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 items-end bg-purple-50 p-4 rounded-xl border border-purple-100">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">عدد الأشهر</label>
+                      <input
+                        type="number"
+                        value={formData.months}
+                        onChange={(e) => setFormData({ ...formData, months: Number(e.target.value) })}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className="w-full px-3 py-2 bg-white border border-purple-200 rounded-md text-sm font-bold"
+                        min="1"
+                        max="120"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">رقم إيصال الدفعة الأولى</label>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">قيمة القسط الشهري (تقريبي)</label>
                       <input
-                        type="text"
-                        value={formData.downPaymentReceipt}
-                        onChange={(e) => setFormData({ ...formData, downPaymentReceipt: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm"
-                        placeholder="اختياري"
+                        type="number"
+                        value={Math.round(((formData.totalPrice - (formData.downPayment || 0)) / (formData.months || 1)) * 100) / 100}
+                        onChange={(e) => {
+                          const amount = Number(e.target.value);
+                          if (amount > 0) {
+                            const calculatedMonths = Math.round((formData.totalPrice - (formData.downPayment || 0)) / amount);
+                            setFormData({ ...formData, months: calculatedMonths > 0 ? calculatedMonths : 1 });
+                          }
+                        }}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className="w-full px-3 py-2 bg-white border border-purple-200 rounded-md text-sm font-bold text-purple-700"
                       />
                     </div>
-                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 items-end bg-purple-50 p-4 rounded-xl border border-purple-100">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">عدد الأشهر</label>
-                  <input
-                    type="number"
-                    value={formData.months}
-                    onChange={(e) => setFormData({ ...formData, months: Number(e.target.value) })}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    className="w-full px-3 py-2 bg-white border border-purple-200 rounded-md text-sm font-bold"
-                    min="1"
-                    max="120"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">قيمة القسط الشهري (تقريبي)</label>
-                  <input
-                    type="number"
-                    value={Math.round(((formData.totalPrice - (formData.downPayment || 0)) / (formData.months || 1)) * 100) / 100}
-                    onChange={(e) => {
-                      const amount = Number(e.target.value);
-                      if (amount > 0) {
-                        const calculatedMonths = Math.round((formData.totalPrice - (formData.downPayment || 0)) / amount);
-                        setFormData({ ...formData, months: calculatedMonths > 0 ? calculatedMonths : 1 });
-                      }
-                    }}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    className="w-full px-3 py-2 bg-white border border-purple-200 rounded-md text-sm font-bold text-purple-700"
-                  />
-                </div>
-              </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -431,6 +528,14 @@ export default function Sales() {
               <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
                 <h4 className="font-bold text-[#0A2472] mb-3 border-b border-blue-200 pb-2">ملخص العملية</h4>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  <div className="text-gray-500">نوع العملية:</div>
+                  <div className="font-bold">
+                    {formData.saleType === 'CASH' ? (
+                      <span className="text-emerald-700 font-bold">نقدي (كاش - مدفوع بالكامل)</span>
+                    ) : (
+                      <span className="text-purple-700 font-bold">بيع بالتقسيط</span>
+                    )}
+                  </div>
                   <div className="text-gray-500">العميل:</div>
                   <div className="font-bold">{customers.find(c => c.id === formData.customerId)?.name}</div>
                   <div className="text-gray-500">الماكينة:</div>
@@ -438,7 +543,9 @@ export default function Sales() {
                   <div className="text-gray-500">الإجمالي:</div>
                   <div className="font-bold text-[#0A2472]">{formatCurrency(formData.totalPrice)}</div>
                   <div className="text-gray-500">المدفوع:</div>
-                  <div className="font-bold text-green-600">{formatCurrency(formData.actualPaidAmount)}</div>
+                  <div className="font-bold text-green-600">
+                    {formatCurrency(formData.saleType === 'CASH' ? formData.totalPrice : formData.actualPaidAmount)}
+                  </div>
                   {formData.saleType === 'INSTALLMENT' && (
                     <>
                       <div className="text-gray-500">عدد الأشهر:</div>
