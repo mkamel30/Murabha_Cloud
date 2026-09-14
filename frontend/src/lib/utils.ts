@@ -1,20 +1,25 @@
-import { ar } from '../i18n/ar';
-
 const paymentPlaceIcons: Record<string, string> = {
+  Damen: '👤',
   dhamen: '👤',
+  damen: '👤',
+  'ضامن': '👤',
   post: '📬',
+  'البريد': '📬',
   bank: '🏦',
+  'البنك': '🏦',
 };
 
 export function formatPaymentPlace(place: string | null | undefined): string {
   if (!place) return '-';
   const labels: Record<string, string> = {
-    dhamen: ar.payments.dhamen,
-    post: ar.payments.post,
-    bank: ar.payments.bank,
+    Damen: 'ضامن (Damen)',
+    dhamen: 'ضامن (Damen)',
+    damen: 'ضامن (Damen)',
+    post: 'البريد',
+    bank: 'البنك',
   };
-  const icon = paymentPlaceIcons[place] || '';
-  return icon ? `${icon} ${labels[place] || place}` : place;
+  const icon = paymentPlaceIcons[place] || '💳';
+  return `${icon} ${labels[place] || place}`;
 }
 
 export function formatCurrency(amount: number): string {

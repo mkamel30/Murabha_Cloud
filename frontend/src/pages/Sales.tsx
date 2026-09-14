@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { salesApi, customersApi, settingsApi } from '@/api/client';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatPaymentPlace } from '@/lib/utils';
 import type { MachineSale, Customer } from '@/types';
 import { ar } from '@/i18n/ar';
 import { useToast } from '@/lib/toast';
@@ -40,7 +40,7 @@ export default function Sales() {
     downPayment: 0,
     actualPaidAmount: 0,
     installmentAmount: 0,
-    paymentPlace: 'dhamen',
+    paymentPlace: 'Damen',
     downPaymentReceipt: '',
     notes: '',
     saleDate: new Date().toISOString().split('T')[0],
@@ -49,11 +49,57 @@ export default function Sales() {
   });
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
+  const [serialValidation, setSerialValidation] = useState<{ loading: boolean; error: string; verified: boolean }>({ loading: false, error: '', verified: false });
+  const [receiptValidation, setReceiptValidation] = useState<{ loading: boolean; error: string; verified: boolean }>({ loading: false, error: '', verified: false });
+
+  const checkSerialAvailability = async (serial: string) => {
+    const s = serial.trim().toUpperCase();
+    if (!s) {
+      setSerialValidation({ loading: false, error: '', verified: false });
+      return;
+    }
+    setSerialValidation(prev => ({ ...prev, loading: true, error: '' }));
+    try {
+      const res = await salesApi.checkSerial(s);
+      if (!res.available) {
+        setSerialValidation({ loading: false, error: res.message || 'رقم الماكينة مسجل بالفعل في النظام ولا يمكن بيعها مرتين', verified: false });
+      } else {
+        setSerialValidation({ loading: false, error: '', verified: true });
+      }
+    } catch {
+      setSerialValidation({ loading: false, error: '', verified: false });
+    }
+  };
+
+  const checkReceiptAvailability = async (receipt: string) => {
+    const r = receipt.trim();
+    if (!r) {
+      setReceiptValidation({ loading: false, error: '', verified: false });
+      return;
+    }
+    setReceiptValidation(prev => ({ ...prev, loading: true, error: '' }));
+    try {
+      const res = await salesApi.checkReceipt(r);
+      if (!res.available) {
+        setReceiptValidation({ loading: false, error: res.message || 'رقم الإيصال هذا مستخدم مسبقاً في النظام', verified: false });
+      } else {
+        setReceiptValidation({ loading: false, error: '', verified: true });
+      }
+    } catch {
+      setReceiptValidation({ loading: false, error: '', verified: false });
+    }
+  };
 
   const nextStep = () => {
-    if (step === 1 && (!formData.customerId || !formData.machineSerial)) {
-      setError('يرجى اختيار العميل وإدخال رقم الماكينة');
-      return;
+    if (step === 1) {
+      if (!formData.customerId || !formData.machineSerial) {
+        setError('يرجى اختيار العميل وإدخال رقم الماكينة');
+        return;
+      }
+      if (serialValidation.error) {
+        setError(serialValidation.error);
+        return;
+      }
     }
     if (step === 2) {
       if (formData.totalPrice <= 0) {
@@ -65,7 +111,22 @@ export default function Sales() {
           setError('يرجى إدخال رقم إيصال سداد المبلغ كاملاً');
           return;
         }
+        if (receiptValidation.error) {
+          setError(receiptValidation.error);
+          return;
+        }
       } else {
+        const hasPayment = formData.actualPaidAmount > 0 || formData.downPayment > 0;
+        if (hasPayment) {
+          if (!formData.downPaymentReceipt || !formData.downPaymentReceipt.trim()) {
+            setError('يرجى إدخال رقم إيصال سداد الدفعة الأولى طالما تم تسجيل مبلغ مدفوع');
+            return;
+          }
+          if (receiptValidation.error) {
+            setError(receiptValidation.error);
+            return;
+          }
+        }
         if (formData.months <= 0 || !formData.months) {
           setError('يرجى إدخال عدد الأشهر');
           return;
@@ -151,7 +212,7 @@ export default function Sales() {
         downPayment: 0,
         actualPaidAmount: 0,
         installmentAmount: 0,
-        paymentPlace: 'dhamen',
+        paymentPlace: 'Damen',
         downPaymentReceipt: '',
         notes: '',
         saleDate: new Date().toISOString().split('T')[0],
@@ -323,14 +384,42 @@ export default function Sales() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">{ar.sales.machineSerial}</label>
-                <input
-                  type="text"
-                  value={formData.machineSerial}
-                  onChange={(e) => setFormData({ ...formData, machineSerial: e.target.value.toUpperCase() })}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
-                  required
-                />
+                <label className="block text-sm font-bold text-gray-700 mb-2">{ar.sales.machineSerial} *</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.machineSerial}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setFormData({ ...formData, machineSerial: val });
+                      if (serialValidation.error || serialValidation.verified) {
+                        setSerialValidation({ loading: false, error: '', verified: false });
+                      }
+                    }}
+                    onBlur={(e) => checkSerialAvailability(e.target.value)}
+                    placeholder="أدخل سيريال الماكينة..."
+                    className={`w-full px-3 py-2 bg-gray-50 border rounded-md text-sm font-mono uppercase focus:outline-none focus:ring-2 ${
+                      serialValidation.error 
+                        ? 'border-red-400 focus:ring-red-500/20 bg-red-50/20' 
+                        : serialValidation.verified 
+                        ? 'border-emerald-400 focus:ring-emerald-500/20 bg-emerald-50/20' 
+                        : 'border-gray-200 focus:ring-[#0A2472]/20 focus:border-[#0A2472]'
+                    }`}
+                    required
+                  />
+                  {serialValidation.loading && (
+                    <span className="absolute left-3 top-2.5 text-xs text-gray-400 animate-pulse">جاري الفحص...</span>
+                  )}
+                  {serialValidation.verified && !serialValidation.loading && (
+                    <span className="absolute left-3 top-2.5 text-xs font-bold text-emerald-600">✓ متاح للبيع</span>
+                  )}
+                </div>
+                {serialValidation.error && (
+                  <p className="text-xs text-red-600 font-bold mt-1.5 flex items-center gap-1">
+                    <span>⚠️</span>
+                    <span>{serialValidation.error}</span>
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">{ar.sales.saleDate}</label>
@@ -402,18 +491,29 @@ export default function Sales() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">رقم إيصال السداد الكامل</label>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">رقم إيصال السداد الكامل *</label>
                       <input
                         type="text"
                         value={formData.downPaymentReceipt}
-                        onChange={(e) => setFormData({ ...formData, downPaymentReceipt: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium"
+                        onChange={(e) => {
+                          setFormData({ ...formData, downPaymentReceipt: e.target.value });
+                          if (receiptValidation.error || receiptValidation.verified) {
+                            setReceiptValidation({ loading: false, error: '', verified: false });
+                          }
+                        }}
+                        onBlur={(e) => checkReceiptAvailability(e.target.value)}
+                        className={`w-full px-3 py-2 bg-white border rounded-md text-sm font-medium ${
+                          receiptValidation.error ? 'border-red-400 bg-red-50/20' : 'border-gray-200'
+                        }`}
                         required
                         placeholder="مثال: CSH-1002"
                       />
+                      {receiptValidation.error && (
+                        <p className="text-xs text-red-600 font-bold mt-1">⚠️ {receiptValidation.error}</p>
+                      )}
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ السداد</label>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ السداد *</label>
                       <input
                         type="date"
                         value={formData.lastDepositDate}
@@ -422,6 +522,14 @@ export default function Sales() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">مكان وقناة سداد المبلغ الكاش *</label>
+                    <PaymentPlaceSelect
+                      value={formData.paymentPlace}
+                      onChange={(value) => setFormData({ ...formData, paymentPlace: value })}
+                    />
                   </div>
                 </div>
               ) : (
@@ -485,16 +593,39 @@ export default function Sales() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">رقم إيصال الدفعة الأولى</label>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                          رقم إيصال الدفعة الأولى {(formData.actualPaidAmount > 0 || formData.downPayment > 0) && <span className="text-red-500">*</span>}
+                        </label>
                         <input
                           type="text"
                           value={formData.downPaymentReceipt}
-                          onChange={(e) => setFormData({ ...formData, downPaymentReceipt: e.target.value })}
-                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm"
-                          placeholder="اختياري"
+                          onChange={(e) => {
+                            setFormData({ ...formData, downPaymentReceipt: e.target.value });
+                            if (receiptValidation.error || receiptValidation.verified) {
+                              setReceiptValidation({ loading: false, error: '', verified: false });
+                            }
+                          }}
+                          onBlur={(e) => checkReceiptAvailability(e.target.value)}
+                          className={`w-full px-3 py-2 bg-white border rounded-md text-sm ${
+                            receiptValidation.error ? 'border-red-400 bg-red-50/20' : 'border-gray-200'
+                          }`}
+                          placeholder={(formData.actualPaidAmount > 0 || formData.downPayment > 0) ? "أدخل رقم الإيصال (إجباري) *" : "اختياري (لا يوجد سداد)"}
                         />
+                        {receiptValidation.error && (
+                          <p className="text-xs text-red-600 font-bold mt-1">⚠️ {receiptValidation.error}</p>
+                        )}
                       </div>
                     </div>
+
+                    {(formData.actualPaidAmount > 0 || formData.downPayment > 0) && (
+                      <div className="pt-2 border-t border-slate-200/70">
+                        <label className="block text-sm font-bold text-gray-700 mb-2">مكان وقناة سداد الدفعة الأولى *</label>
+                        <PaymentPlaceSelect
+                          value={formData.paymentPlace}
+                          onChange={(value) => setFormData({ ...formData, paymentPlace: value })}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 items-end bg-purple-50 p-4 rounded-xl border border-purple-100">
@@ -561,15 +692,15 @@ export default function Sales() {
                       <div className="font-bold">{formData.months} شهر</div>
                     </>
                   )}
+                  {(formData.saleType === 'CASH' || formData.actualPaidAmount > 0 || formData.downPayment > 0) && (
+                    <>
+                      <div className="text-gray-500">رقم إيصال السداد:</div>
+                      <div className="font-mono font-bold text-[#0A2472]">{formData.downPaymentReceipt || '-'}</div>
+                      <div className="text-gray-500">جهة ومكان السداد:</div>
+                      <div className="font-bold text-slate-800">{formatPaymentPlace(formData.paymentPlace)}</div>
+                    </>
+                  )}
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">{ar.sales.paymentPlace}</label>
-                <PaymentPlaceSelect
-                  value={formData.paymentPlace}
-                  onChange={(value) => setFormData({ ...formData, paymentPlace: value })}
-                />
               </div>
               
               <div>

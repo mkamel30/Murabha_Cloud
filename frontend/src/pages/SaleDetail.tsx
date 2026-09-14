@@ -30,16 +30,38 @@ export default function SaleDetail() {
   const [paymentForm, setPaymentForm] = useState({ 
     amount: 0, 
     paymentType: 'INSTALLMENT' as 'INSTALLMENT' | 'DOWN_PAYMENT', 
-    paymentPlace: 'dhamen', 
+    paymentPlace: 'Damen', 
     notes: '', 
     installmentIds: [] as string[],
     receiptNumber: '',
     paidAt: new Date().toISOString().split('T')[0]
   });
   const [voidReason, setVoidReason] = useState('');
-  const [quickPaymentPlace, setQuickPaymentPlace] = useState('dhamen');
+  const [quickPaymentPlace, setQuickPaymentPlace] = useState('Damen');
   const [quickReceiptNumber, setQuickReceiptNumber] = useState('');
   const [quickPaidAt, setQuickPaidAt] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentReceiptError, setPaymentReceiptError] = useState('');
+  const [quickReceiptError, setQuickReceiptError] = useState('');
+
+  const checkPaymentReceipt = async (receipt: string) => {
+    const r = receipt.trim();
+    if (!r) { setPaymentReceiptError(''); return; }
+    try {
+      const res = await salesApi.checkReceipt(r);
+      if (!res.available) setPaymentReceiptError(res.message || 'رقم الإيصال مستخدم مسبقاً في النظام');
+      else setPaymentReceiptError('');
+    } catch { setPaymentReceiptError(''); }
+  };
+
+  const checkQuickReceipt = async (receipt: string) => {
+    const r = receipt.trim();
+    if (!r) { setQuickReceiptError(''); return; }
+    try {
+      const res = await salesApi.checkReceipt(r);
+      if (!res.available) setQuickReceiptError(res.message || 'رقم الإيصال مستخدم مسبقاً في النظام');
+      else setQuickReceiptError('');
+    } catch { setQuickReceiptError(''); }
+  };
   const [editSaleForm, setEditSaleForm] = useState({
     saleDate: '',
     notes: '',
@@ -94,26 +116,44 @@ export default function SaleDetail() {
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (paymentReceiptError) {
+      showToast(paymentReceiptError, 'error');
+      return;
+    }
+    if (!paymentForm.receiptNumber?.trim()) {
+      showToast('يرجى إدخال رقم الإيصال', 'error');
+      return;
+    }
+    try {
+      const chk = await salesApi.checkReceipt(paymentForm.receiptNumber.trim());
+      if (!chk.available) {
+        setPaymentReceiptError(chk.message || 'رقم الإيصال مستخدم مسبقاً في النظام');
+        showToast(chk.message || 'رقم الإيصال مستخدم مسبقاً في النظام', 'error');
+        return;
+      }
+    } catch {}
     try {
       await salesApi.pay(id!, {
         ...paymentForm,
         saleId: id,
-        amount: Number(paymentForm.amount)
+        amount: Number(paymentForm.amount),
+        receiptNumber: paymentForm.receiptNumber.trim()
       });
       showToast(ar.common.success, 'success');
       setShowPaymentModal(false);
       setPaymentForm({ 
         amount: 0, 
         paymentType: 'INSTALLMENT', 
-        paymentPlace: 'dhamen', 
+        paymentPlace: 'Damen', 
         notes: '', 
         installmentIds: [], 
         receiptNumber: '',
         paidAt: new Date().toISOString().split('T')[0]
       });
+      setPaymentReceiptError('');
       loadSale();
-    } catch (err: unknown) {
-      showToast(ar.common.error, 'error');
+    } catch (err: any) {
+      showToast(err.response?.data?.error || ar.common.error, 'error');
     }
   };
 
@@ -155,6 +195,22 @@ export default function SaleDetail() {
 
   const handleQuickPay = async () => {
     if (!selectedInstallment) return;
+    if (quickReceiptError) {
+      showToast(quickReceiptError, 'error');
+      return;
+    }
+    if (!quickReceiptNumber.trim()) {
+      showToast('يرجى إدخال رقم الإيصال', 'error');
+      return;
+    }
+    try {
+      const chk = await salesApi.checkReceipt(quickReceiptNumber.trim());
+      if (!chk.available) {
+        setQuickReceiptError(chk.message || 'رقم الإيصال مستخدم مسبقاً في النظام');
+        showToast(chk.message || 'رقم الإيصال مستخدم مسبقاً في النظام', 'error');
+        return;
+      }
+    } catch {}
     try {
       await salesApi.pay(id!, {
         saleId: id,
@@ -163,18 +219,19 @@ export default function SaleDetail() {
         paymentPlace: quickPaymentPlace,
         notes: '',
         installmentIds: [selectedInstallment.id],
-        receiptNumber: quickReceiptNumber,
+        receiptNumber: quickReceiptNumber.trim(),
         paidAt: quickPaidAt
       });
       showToast(ar.common.success, 'success');
       setShowPayModal(false);
-      setQuickPaymentPlace('dhamen');
+      setQuickPaymentPlace('Damen');
       setQuickReceiptNumber('');
+      setQuickReceiptError('');
       setQuickPaidAt(new Date().toISOString().split('T')[0]);
       setSelectedInstallment(null);
       loadSale();
-    } catch (err: unknown) {
-      showToast(ar.common.error, 'error');
+    } catch (err: any) {
+      showToast(err.response?.data?.error || ar.common.error, 'error');
     }
   };
 
@@ -280,7 +337,7 @@ export default function SaleDetail() {
       receiptNumber: inst.receiptNumber || '',
       paidDate: inst.paidDate ? new Date(inst.paidDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       installmentNo: inst.installmentNo,
-      paymentPlace: linkedPayment?.paymentPlace || 'dhamen'
+      paymentPlace: linkedPayment?.paymentPlace || 'Damen'
     });
     setShowEditInstModal(true);
   };
@@ -299,12 +356,11 @@ export default function SaleDetail() {
   // Helper to get payment place display name
   const getPlaceLabel = (place?: string) => {
     if (!place) return '';
-    const places: Record<string, string> = {
-      'dhamen': 'ضامن',
-      'post': 'البريد',
-      'bank': 'البنك'
-    };
-    return places[place] || place;
+    const p = place.toLowerCase();
+    if (p === 'dhamen' || p === 'damen') return 'ضامن (Damen)';
+    if (p === 'post' || place === 'البريد') return 'البريد';
+    if (p === 'bank' || place === 'البنك') return 'البنك';
+    return place;
   };
 
   return (
@@ -627,14 +683,24 @@ export default function SaleDetail() {
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">{ar.payments.receiptNumber}</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              {ar.payments.receiptNumber} <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               value={paymentForm.receiptNumber}
-              onChange={(e) => setPaymentForm({ ...paymentForm, receiptNumber: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
+              onChange={(e) => {
+                setPaymentForm({ ...paymentForm, receiptNumber: e.target.value });
+                if (paymentReceiptError) setPaymentReceiptError('');
+              }}
+              onBlur={(e) => checkPaymentReceipt(e.target.value)}
+              className={`w-full px-3 py-2 bg-gray-50 border ${paymentReceiptError ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]`}
               placeholder={ar.common.receiptNumberPlaceholder}
+              required
             />
+            {paymentReceiptError && (
+              <p className="mt-1 text-xs text-red-600 font-semibold">{paymentReceiptError}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ الدفع الفعلي</label>
@@ -701,14 +767,24 @@ export default function SaleDetail() {
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">{ar.payments.receiptNumber}</label>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                {ar.payments.receiptNumber} <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={quickReceiptNumber}
-                onChange={(e) => setQuickReceiptNumber(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
+                onChange={(e) => {
+                  setQuickReceiptNumber(e.target.value);
+                  if (quickReceiptError) setQuickReceiptError('');
+                }}
+                onBlur={(e) => checkQuickReceipt(e.target.value)}
+                className={`w-full px-3 py-2 bg-gray-50 border ${quickReceiptError ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]`}
                 placeholder={ar.common.receiptNumberPlaceholder}
+                required
               />
+              {quickReceiptError && (
+                <p className="mt-1 text-xs text-red-600 font-semibold">{quickReceiptError}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ الدفع</label>
@@ -856,7 +932,7 @@ export default function SaleDetail() {
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">مكان الدفع</label>
             <PaymentPlaceSelect
-              value={editingInst?.paymentPlace || 'dhamen'}
+              value={editingInst?.paymentPlace || 'Damen'}
               onChange={(value) => setEditingInst(prev => prev ? { ...prev, paymentPlace: value } : null)}
             />
           </div>

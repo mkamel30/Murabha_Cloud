@@ -875,11 +875,9 @@ export class ExportService {
 
 function getPaymentPlaceLabel(place: string | null | undefined): string {
   if (!place) return '-';
-  const labels: Record<string, string> = {
-    dhamen: 'ضامن',
-    post: 'البريد',
-    bank: 'البنك',
-  };
-  const icon = labels[place] ? `👤 ${labels[place]}` : place;
-  return icon;
+  const p = place.toLowerCase();
+  if (p === 'dhamen' || p === 'damen') return '👤 ضامن (Damen)';
+  if (p === 'post' || place === 'البريد') return '📮 البريد';
+  if (p === 'bank' || place === 'البنك') return '🏦 البنك';
+  return place;
 }

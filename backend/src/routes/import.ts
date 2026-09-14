@@ -354,7 +354,7 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
             downPayment,
             paidAmount: totalActualPaid,
             remainingAmount: remainingAfterAllPaid,
-            paymentPlace: 'dhamen',
+            paymentPlace: 'Damen',
             notes: notes || 'مستورد من ملف قديم',
             saleDate,
             firstDueDate: !isCash && months > 0 ? addMonths(saleDate, 2) : undefined,
@@ -409,7 +409,7 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
                   saleId: sale.id,
                   paymentType: 'INSTALLMENT',
                   amount: appliedExtra,
-                  paymentPlace: 'dhamen',
+                  paymentPlace: 'Damen',
                   notes: 'مستورد من ملف قديم (قسط)',
                   paidAt: instPaidDate || new Date(currentDate),
                 }
@@ -449,7 +449,7 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
                 saleId: sale.id,
                 paymentType: 'CASH_SALE',
                 amount: totalActualPaid,
-                paymentPlace: 'dhamen',
+                paymentPlace: 'Damen',
                 notes: 'مستورد من ملف قديم (كاش)',
                 paidAt: lastPaymentDate || saleDate,
               }
@@ -461,7 +461,7 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
                 saleId: sale.id,
                 paymentType: 'DOWN_PAYMENT',
                 amount: downPayment,
-                paymentPlace: 'dhamen',
+                paymentPlace: 'Damen',
                 notes: 'مستورد من ملف قديم (مقدم)',
                 paidAt: saleDate,
               }

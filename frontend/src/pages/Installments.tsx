@@ -24,9 +24,28 @@ export default function Installments() {
 
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedInst, setSelectedInst] = useState<Installment | null>(null);
-  const [quickPaymentPlace, setQuickPaymentPlace] = useState('dhamen');
+  const [quickPaymentPlace, setQuickPaymentPlace] = useState('Damen');
   const [quickReceiptNumber, setQuickReceiptNumber] = useState('');
   const [quickPaidAt, setQuickPaidAt] = useState(new Date().toISOString().split('T')[0]);
+  const [receiptError, setReceiptError] = useState('');
+
+  const checkReceiptAvailability = async (receipt: string) => {
+    const r = receipt.trim();
+    if (!r) {
+      setReceiptError('');
+      return;
+    }
+    try {
+      const res = await salesApi.checkReceipt(r);
+      if (!res.available) {
+        setReceiptError(res.message || 'رقم الإيصال هذا مستخدم مسبقاً في النظام');
+      } else {
+        setReceiptError('');
+      }
+    } catch {
+      setReceiptError('');
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -49,11 +68,20 @@ export default function Installments() {
 
   const handlePayClick = (inst: Installment) => {
     setSelectedInst(inst);
+    setReceiptError('');
     setShowPayModal(true);
   };
 
   const handleQuickPay = async () => {
     if (!selectedInst) return;
+    if (!quickReceiptNumber.trim()) {
+      showToast('يرجى إدخال رقم إيصال الدفع', 'error');
+      return;
+    }
+    if (receiptError) {
+      showToast(receiptError, 'error');
+      return;
+    }
     try {
       await salesApi.pay(selectedInst.saleId, {
         saleId: selectedInst.saleId,
@@ -67,8 +95,9 @@ export default function Installments() {
       });
       showToast(ar.common.success, 'success');
       setShowPayModal(false);
-      setQuickPaymentPlace('dhamen');
+      setQuickPaymentPlace('Damen');
       setQuickReceiptNumber('');
+      setReceiptError('');
       setQuickPaidAt(new Date().toISOString().split('T')[0]);
       setSelectedInst(null);
       loadData();
@@ -447,14 +476,24 @@ export default function Installments() {
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">{ar.payments.receiptNumber}</label>
+              <label className="block text-sm font-bold text-gray-700 mb-2">{ar.payments.receiptNumber} *</label>
               <input
                 type="text"
                 value={quickReceiptNumber}
-                onChange={(e) => setQuickReceiptNumber(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
-                placeholder="أدخل رقم الإيصال"
+                onChange={(e) => {
+                  setQuickReceiptNumber(e.target.value);
+                  if (receiptError) setReceiptError('');
+                }}
+                onBlur={(e) => checkReceiptAvailability(e.target.value)}
+                className={`w-full px-3 py-2 bg-gray-50 border rounded-md text-sm focus:outline-none focus:ring-2 ${
+                  receiptError ? 'border-red-400 bg-red-50/20' : 'border-gray-200 focus:ring-[#0A2472]/20 focus:border-[#0A2472]'
+                }`}
+                placeholder="أدخل رقم الإيصال (إجباري)"
+                required
               />
+              {receiptError && (
+                <p className="text-xs text-red-600 font-bold mt-1">⚠️ {receiptError}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ الدفع</label>

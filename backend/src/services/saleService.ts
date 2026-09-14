@@ -55,10 +55,36 @@ export class SaleService {
       }
     }
 
-    if (data.saleType === 'CASH' && !data.downPaymentReceipt) {
-      const error = new Error('رقم إيصال القبض مطلوب للبيع النقدي') as Error & { statusCode: number };
+    const hasDownPayment = (data.actualPaidAmount && data.actualPaidAmount > 0) || (data.downPayment && data.downPayment > 0) || data.saleType === 'CASH';
+    if (hasDownPayment && (!data.downPaymentReceipt || !data.downPaymentReceipt.trim())) {
+      const error = new Error('رقم إيصال الدفع مطلوب طالما تم تسجيل مبلغ مدفوع') as Error & { statusCode: number };
       error.statusCode = 400;
       throw error;
+    }
+
+    if (data.downPaymentReceipt && data.downPaymentReceipt.trim()) {
+      const receipt = data.downPaymentReceipt.trim();
+      const [existingPayment, existingSaleReceipt, existingSaleDP] = await Promise.all([
+        prisma.payment.findFirst({
+          where: { receiptNumber: receipt },
+          include: { sale: { include: { customer: true } } },
+        }),
+        prisma.machineSale.findFirst({
+          where: { receiptNumber: receipt, status: { not: 'VOIDED' } },
+          include: { customer: true },
+        }),
+        prisma.machineSale.findFirst({
+          where: { downPaymentReceipt: receipt, status: { not: 'VOIDED' } },
+          include: { customer: true },
+        }),
+      ]);
+
+      if (existingPayment || existingSaleReceipt || existingSaleDP) {
+        const custName = existingPayment?.sale?.customer?.name || existingSaleReceipt?.customer?.name || existingSaleDP?.customer?.name || 'غير معروف';
+        const error = new Error(`رقم الإيصال (${receipt}) مستخدم مسبقاً في النظام (مسجل للعميل: ${custName})`) as Error & { statusCode: number };
+        error.statusCode = 400;
+        throw error;
+      }
     }
 
     if (data.downPayment > data.totalPrice) {
@@ -337,24 +363,25 @@ export class SaleService {
     }
 
     if (customReceiptNumber) {
-      const existingReceipt = await prisma.payment.findFirst({
-        where: { 
-          receiptNumber: customReceiptNumber,
-          saleId: { not: saleId }
-        },
-        include: {
-          sale: {
-            include: {
-              customer: true
-            }
-          }
-        }
-      });
+      const receipt = customReceiptNumber.trim();
+      const [existingReceipt, existingSaleReceipt, existingSaleDP] = await Promise.all([
+        prisma.payment.findFirst({
+          where: { receiptNumber: receipt },
+          include: { sale: { include: { customer: true } } }
+        }),
+        prisma.machineSale.findFirst({
+          where: { receiptNumber: receipt, status: { not: 'VOIDED' } },
+          include: { customer: true }
+        }),
+        prisma.machineSale.findFirst({
+          where: { downPaymentReceipt: receipt, status: { not: 'VOIDED' } },
+          include: { customer: true }
+        }),
+      ]);
 
-      if (existingReceipt && existingReceipt.sale) {
-        const customer = existingReceipt.sale.customer;
-        const machineSerial = existingReceipt.sale.machineSerial;
-        const error = new Error(`رقم الإيصال هذا تم استخدامه مسبقاً مع العميل: ${customer.name} (كود: ${customer.bkCode}) للماكينة رقم: ${machineSerial}`) as Error & { statusCode: number };
+      if (existingReceipt || existingSaleReceipt || existingSaleDP) {
+        const custName = existingReceipt?.sale?.customer?.name || existingSaleReceipt?.customer?.name || existingSaleDP?.customer?.name || 'غير معروف';
+        const error = new Error(`رقم الإيصال (${receipt}) تم استخدامه مسبقاً في النظام (مسجل للعميل: ${custName})`) as Error & { statusCode: number };
         error.statusCode = 400;
         throw error;
       }

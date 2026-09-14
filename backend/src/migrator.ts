@@ -85,6 +85,15 @@ const MIGRATIONS: Migration[] = [
       );`,
       `INSERT OR IGNORE INTO SystemSetting (key, value, description) VALUES ('enableCashSales', 'false', 'تفعيل ميزة البيع النقدي (الكاش)');`
     ]
+  },
+  {
+    version: '1.0.9',
+    description: 'توحيد جهة دفع ضامن إلى Damen وتحديث السجلات الحالية وتهيئة أماكن الدفع',
+    sql: [
+      `UPDATE MachineSale SET paymentPlace = 'Damen' WHERE LOWER(paymentPlace) IN ('dhamen', 'damen');`,
+      `UPDATE Payment SET paymentPlace = 'Damen' WHERE LOWER(paymentPlace) IN ('dhamen', 'damen');`,
+      `INSERT OR IGNORE INTO SystemSetting (key, value, description) VALUES ('paymentPlaces', '["Damen", "البريد", "البنك"]', 'أماكن وقنوات الدفع المعتمدة');`
+    ]
   }
 ];
 

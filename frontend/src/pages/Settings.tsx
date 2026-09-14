@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PageHeader } from '@/lib/Actions';
-import { Building2, Users, BookOpen, ChevronDown, ChevronUp, Database, SlidersHorizontal, Banknote } from 'lucide-react';
+import { Building2, Users, BookOpen, ChevronDown, ChevronUp, Database, SlidersHorizontal, Banknote, CreditCard, Plus, Trash2 } from 'lucide-react';
 import OracleMigrationWizard from '@/components/OracleMigrationWizard';
 import BranchesManagement from './BranchesManagement';
 import UsersManagement from './UsersManagement';
@@ -19,8 +19,11 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => canManageUsers ? 'general' : 'guide');
   const [activeHelpTab, setActiveHelpTab] = useState<string | null>(null);
   const [enableCashSales, setEnableCashSales] = useState<boolean>(false);
+  const [paymentPlaces, setPaymentPlaces] = useState<string[]>(['Damen', 'البريد', 'البنك']);
+  const [newPlaceInput, setNewPlaceInput] = useState<string>('');
   const [loadingSettings, setLoadingSettings] = useState<boolean>(true);
   const [savingCashSetting, setSavingCashSetting] = useState<boolean>(false);
+  const [savingPlaces, setSavingPlaces] = useState<boolean>(false);
 
   useEffect(() => {
     if (canManageUsers) {
@@ -28,6 +31,9 @@ export default function SettingsPage() {
         .then((data) => {
           if (data && typeof data.enableCashSales === 'boolean') {
             setEnableCashSales(data.enableCashSales);
+          }
+          if (data && Array.isArray(data.paymentPlaces)) {
+            setPaymentPlaces(data.paymentPlaces);
           }
         })
         .catch((err) => {
@@ -48,6 +54,46 @@ export default function SettingsPage() {
       showToast(err.response?.data?.error || 'فشل تحديث إعدادات النظام', 'error');
     } finally {
       setSavingCashSetting(false);
+    }
+  };
+
+  const handleAddPlace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newPlaceInput.trim();
+    if (!trimmed) return;
+    if (paymentPlaces.includes(trimmed)) {
+      showToast('جهة الدفع هذه مضافة بالفعل', 'error');
+      return;
+    }
+    const updated = [...paymentPlaces, trimmed];
+    setSavingPlaces(true);
+    try {
+      await settingsApi.update('paymentPlaces', updated);
+      setPaymentPlaces(updated);
+      setNewPlaceInput('');
+      showToast(`تمت إضافة جهة الدفع "${trimmed}" بنجاح`, 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'فشل حفظ جهة الدفع', 'error');
+    } finally {
+      setSavingPlaces(false);
+    }
+  };
+
+  const handleRemovePlace = async (placeToRemove: string) => {
+    if (paymentPlaces.length <= 1) {
+      showToast('يجب الإبقاء على جهة دفع واحدة على الأقل في النظام', 'error');
+      return;
+    }
+    const updated = paymentPlaces.filter(p => p !== placeToRemove);
+    setSavingPlaces(true);
+    try {
+      await settingsApi.update('paymentPlaces', updated);
+      setPaymentPlaces(updated);
+      showToast(`تم حذف جهة الدفع "${placeToRemove}" بنجاح`, 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'فشل حذف جهة الدفع', 'error');
+    } finally {
+      setSavingPlaces(false);
     }
   };
 
@@ -194,6 +240,69 @@ export default function SettingsPage() {
                       }`}
                     />
                   </button>
+                </div>
+              </div>
+
+              {/* Feature: Payment Places Management */}
+              <div className="p-5 rounded-xl border border-slate-200/70 bg-gradient-to-r from-slate-50 to-white space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 text-[#0A2472] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <CreditCard className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1 flex-1">
+                    <h3 className="text-base font-bold text-slate-800">أماكن وقنوات الدفع والتحصيل المعتمدة</h3>
+                    <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
+                      تحديد قنوات وأماكن السداد التي تظهر في شاشات تسجيل العقود، الدفعات المقدمة، وسداد الأقساط (مثل: <strong>Damen</strong>، <strong>البريد</strong>، <strong>البنك</strong>، أو أي جهات أخرى مخصصة).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200/60 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <span>القنوات المتاحة حالياً:</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {paymentPlaces.map((place) => (
+                      <span
+                        key={place}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-sm text-xs font-bold text-slate-800 transition-all hover:border-slate-300"
+                      >
+                        <span className="text-[#0A2472]">
+                          {place === 'Damen' ? '👤' : place === 'البريد' ? '📬' : place === 'البنك' ? '🏦' : '💳'}
+                        </span>
+                        <span>{place === 'Damen' ? 'ضامن (Damen)' : place}</span>
+                        <button
+                          type="button"
+                          disabled={savingPlaces || paymentPlaces.length <= 1}
+                          onClick={() => handleRemovePlace(place)}
+                          className="text-slate-400 hover:text-red-600 transition-colors p-0.5 rounded-full hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="حذف جهة الدفع"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+
+                  <form onSubmit={handleAddPlace} className="flex gap-2 max-w-md pt-2">
+                    <input
+                      type="text"
+                      value={newPlaceInput}
+                      onChange={(e) => setNewPlaceInput(e.target.value)}
+                      placeholder="اسم جهة الدفع (مثال: محفظة ذكية، البنك الأهلي)..."
+                      className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
+                      disabled={savingPlaces}
+                    />
+                    <button
+                      type="submit"
+                      disabled={savingPlaces || !newPlaceInput.trim()}
+                      className="px-4 py-2 bg-[#0A2472] text-white rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-[#0A2472]/90 disabled:opacity-50 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>{savingPlaces ? 'جاري الحفظ...' : 'إضافة'}</span>
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>

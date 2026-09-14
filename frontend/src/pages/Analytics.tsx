@@ -68,8 +68,13 @@ export default function Analytics() {
   };
 
   const getPlaceLabel = (place: string) => {
-    const labels: Record<string, string> = { dhamen: 'ضامن', post: 'البريد', bank: 'البنك', branch: 'الفرع' };
-    return labels[place] || place;
+    if (!place) return '';
+    const p = place.toLowerCase();
+    if (p === 'dhamen' || p === 'damen') return 'ضامن (Damen)';
+    if (p === 'post' || place === 'البريد') return 'البريد';
+    if (p === 'bank' || place === 'البنك') return 'البنك';
+    if (p === 'branch' || place === 'الفرع') return 'الفرع';
+    return place;
   };
 
   const formattedChannels = paymentChannels.map((p: any) => ({

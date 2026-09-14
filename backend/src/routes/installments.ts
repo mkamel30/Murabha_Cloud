@@ -250,7 +250,7 @@ router.post('/import-update', upload.single('file'), async (req: Request, res: R
             const existingPayment = await tx.payment.findFirst({
               where: {
                 receiptNumber: finalReceipt,
-                saleId: { not: installment.saleId }
+                ...(installment.paymentId ? { id: { not: installment.paymentId } } : {})
               },
               include: {
                 sale: {
@@ -293,7 +293,7 @@ router.post('/import-update', upload.single('file'), async (req: Request, res: R
                     saleId: installment.saleId,
                     amount: installment.amount,
                     paymentType: 'INSTALLMENT',
-                    paymentPlace: 'dhamen',
+                    paymentPlace: 'Damen',
                     receiptNumber: finalReceipt,
                     paidAt: finalPaidDate,
                     notes: 'تم إنشاؤه تلقائياً وتعديله عبر تحديث ملف الأقساط'
@@ -317,7 +317,7 @@ router.post('/import-update', upload.single('file'), async (req: Request, res: R
                 saleId: installment.saleId,
                 amount: installment.amount,
                 paymentType: 'INSTALLMENT',
-                paymentPlace: 'dhamen',
+                paymentPlace: 'Damen',
                 receiptNumber: finalReceipt,
                 paidAt: finalPaidDate,
                 notes: 'تم إنشاؤه تلقائياً عند تحديث الأقساط عبر ملف'
@@ -434,11 +434,11 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     }
 
     // Check if new receiptNumber is already used in a different sale
-    if (receiptNumber && receiptNumber !== oldInstallment.receiptNumber) {
+    if (receiptNumber && receiptNumber !== 'بدون إيصال' && receiptNumber !== oldInstallment.receiptNumber) {
       const existingPayment = await prisma.payment.findFirst({
-        where: { 
+        where: {
           receiptNumber: receiptNumber,
-          saleId: { not: oldInstallment.saleId }
+          ...(oldInstallment.paymentId ? { id: { not: oldInstallment.paymentId } } : {})
         },
         include: {
           sale: {
@@ -504,7 +504,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
         // 2. Create a brand new separate Payment record for this installment
         const finalReceiptNumber = receiptNumber !== undefined ? receiptNumber : (oldInstallment.receiptNumber || 'بدون إيصال');
         const finalPaidDate = paidDate ? new Date(paidDate) : (oldInstallment.paidDate || new Date());
-        const finalPaymentPlace = paymentPlace !== undefined ? paymentPlace : (payment.paymentPlace || 'dhamen');
+        const finalPaymentPlace = paymentPlace !== undefined ? paymentPlace : (payment.paymentPlace || 'Damen');
 
         const newPayment = await tx.payment.create({
           data: {
@@ -550,7 +550,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
         const paymentDate = paidDate ? new Date(paidDate) : (oldInstallment.paidDate || new Date());
         const paymentAmount = paidAmount !== undefined ? Number(paidAmount) : Number(inst.paidAmount || inst.amount);
         const finalReceiptNumber = receiptNumber !== undefined ? receiptNumber : (inst.receiptNumber || 'بدون إيصال');
-        const finalPaymentPlace = paymentPlace !== undefined ? paymentPlace : 'dhamen';
+        const finalPaymentPlace = paymentPlace !== undefined ? paymentPlace : 'Damen';
 
         payment = await tx.payment.create({
           data: {

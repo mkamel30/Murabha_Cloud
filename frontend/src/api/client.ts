@@ -132,6 +132,10 @@ export const salesApi = {
     api.post(`/sales/${id}/preview-payment`, { amount, installmentIds }).then((r) => r.data),
   fullRecalculate: (id: string, data: any) =>
     api.post(`/sales/${id}/full-recalculate`, data).then((r) => r.data),
+  checkSerial: (serial: string) =>
+    api.get<{ available: boolean; message?: string; existingSale?: any }>('/sales/check-serial', { params: { serial } }).then((r) => r.data),
+  checkReceipt: (receipt: string) =>
+    api.get<{ available: boolean; message?: string; existingPayment?: any }>('/sales/check-receipt', { params: { receipt } }).then((r) => r.data),
 };
 
 export const installmentsApi = {

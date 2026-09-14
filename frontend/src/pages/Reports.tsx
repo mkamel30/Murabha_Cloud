@@ -366,7 +366,7 @@ export default function Reports() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
               >
                 <option value="">{ar.common.all}</option>
-                <option value="dhamen">ضامن</option>
+                <option value="Damen">ضامن (Damen)</option>
                 <option value="post">البريد</option>
                 <option value="bank">البنك</option>
               </select>

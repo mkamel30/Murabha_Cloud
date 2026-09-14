@@ -77,7 +77,7 @@ router.post('/waive-installments', requireRoles(UserRole.SUPER_ADMIN, UserRole.H
           saleId,
           paymentType: 'REWARD',
           amount: totalWaived,
-          paymentPlace: 'dhamen',
+          paymentPlace: 'Damen',
           notes: reason || 'تنزيل أقساط - مكافأة',
           paidAt: new Date(),
         },

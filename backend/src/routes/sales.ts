@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import prisma from '../lib/prisma.js';
 import { SaleService } from '../services/saleService.js';
 import { saleSchema, voidSaleSchema, recalculateInstallmentsSchema, paymentSchema, fullRecalculateSchema } from '../validators/schemas.js';
 import { SaleRepository } from '../repositories/index.js';
@@ -49,6 +50,99 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       branchId: req.branchId || undefined,
     });
     res.json(sales);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Check machine serial availability across the entire database
+router.get('/check-serial', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const serial = String(req.query.serial || '').trim().toUpperCase();
+    if (!serial) {
+      return res.json({ available: true });
+    }
+
+    const existing = await prisma.machineSale.findFirst({
+      where: {
+        machineSerial: serial,
+        status: { not: 'VOIDED' },
+      },
+      include: {
+        customer: true,
+      },
+    });
+
+    if (existing) {
+      const customerName = existing.customer?.name || 'غير معروف';
+      const saleDate = existing.saleDate ? new Date(existing.saleDate).toISOString().split('T')[0] : '';
+      return res.json({
+        available: false,
+        message: `رقم الماكينة (${serial}) مسجل بالفعل للعميل: ${customerName} بتاريخ ${saleDate} ولا يمكن بيع الماكينة مرتين`,
+        existingSale: {
+          id: existing.id,
+          customerName,
+          saleDate,
+          receiptNumber: existing.receiptNumber,
+        },
+      });
+    }
+
+    res.json({ available: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Check receipt number availability across the entire database
+router.get('/check-receipt', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const receipt = String(req.query.receipt || '').trim();
+    if (!receipt) {
+      return res.json({ available: true });
+    }
+
+    const [existingPayment, existingSaleReceipt, existingSaleDP] = await Promise.all([
+      prisma.payment.findFirst({
+        where: { receiptNumber: receipt },
+        include: { sale: { include: { customer: true } } },
+      }),
+      prisma.machineSale.findFirst({
+        where: { receiptNumber: receipt, status: { not: 'VOIDED' } },
+        include: { customer: true },
+      }),
+      prisma.machineSale.findFirst({
+        where: { downPaymentReceipt: receipt, status: { not: 'VOIDED' } },
+        include: { customer: true },
+      }),
+    ]);
+
+    if (existingPayment) {
+      const customerName = existingPayment.sale?.customer?.name || 'غير معروف';
+      const paidAt = existingPayment.paidAt ? new Date(existingPayment.paidAt).toISOString().split('T')[0] : '';
+      return res.json({
+        available: false,
+        message: `رقم الإيصال (${receipt}) مسجل مسبقاً لدفعة بتاريخ ${paidAt} للعميل: ${customerName}`,
+        existingPayment: {
+          id: existingPayment.id,
+          customerName,
+          amount: existingPayment.amount,
+          paidAt,
+        },
+      });
+    }
+
+    if (existingSaleReceipt || existingSaleDP) {
+      const sale = existingSaleReceipt || existingSaleDP;
+      const customerName = sale?.customer?.name || 'غير معروف';
+      const saleDate = sale?.saleDate ? new Date(sale.saleDate).toISOString().split('T')[0] : '';
+      return res.json({
+        available: false,
+        message: `رقم الإيصال (${receipt}) مسجل مسبقاً في عملية بيع للعميل: ${customerName} بتاريخ ${saleDate}`,
+      });
+    }
+
+    res.json({ available: true });
   } catch (error) {
     next(error);
   }

@@ -17,6 +17,7 @@ release/
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
 *.db.backup
 murabha-backup-*.db
 murabha-auto-*.db

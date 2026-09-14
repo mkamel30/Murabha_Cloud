@@ -28,6 +28,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
     const settings: Record<string, any> = {
       enableCashSales: false,
+      paymentPlaces: ['Damen', 'البريد', 'البنك'],
     };
 
     for (const row of rows) {
@@ -36,7 +37,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       } else if (row.value === 'false') {
         settings[row.key] = false;
       } else {
-        settings[row.key] = row.value;
+        try {
+          settings[row.key] = JSON.parse(row.value);
+        } catch {
+          settings[row.key] = row.value;
+        }
       }
     }
 
@@ -54,22 +59,38 @@ router.put('/:key', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER), asy
 
     if (typeof value === 'boolean') {
       value = value ? 'true' : 'false';
+    } else if (typeof value === 'object' && value !== null) {
+      value = JSON.stringify(value);
     } else {
       value = String(value);
     }
 
+    const escapedVal = value.replace(/'/g, "''");
+    const escapedKey = String(key).replace(/'/g, "''");
+
     await prisma.$executeRawUnsafe(`
       INSERT INTO SystemSetting (key, value, updatedAt)
-      VALUES ('${key}', '${value}', datetime('now'))
+      VALUES ('${escapedKey}', '${escapedVal}', datetime('now'))
       ON CONFLICT(key) DO UPDATE SET
         value = excluded.value,
         updatedAt = excluded.updatedAt
     `);
 
+    let responseValue: any = value;
+    if (value === 'true') responseValue = true;
+    else if (value === 'false') responseValue = false;
+    else {
+      try {
+        responseValue = JSON.parse(value);
+      } catch {
+        responseValue = value;
+      }
+    }
+
     res.json({
       success: true,
       key,
-      value: value === 'true' ? true : value === 'false' ? false : value,
+      value: responseValue,
       message: 'تم تحديث الإعداد بنجاح'
     });
   } catch (error) {
