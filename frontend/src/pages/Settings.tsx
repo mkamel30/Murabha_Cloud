@@ -1,153 +1,23 @@
-import { useState, useRef, useEffect } from 'react';
-import { backupApi, adminApi, exportApi } from '@/api/client';
-import { PageHeader, PrimaryButton } from '@/lib/Actions';
-import { useToast } from '@/lib/toast';
-import { Settings, Download, Upload, RefreshCw, Trash2, Lock, ShieldCheck, Building2, Users, FileSpreadsheet, BookOpen, ChevronDown, ChevronUp, Database } from 'lucide-react';
+import { useState } from 'react';
+import { PageHeader } from '@/lib/Actions';
+import { Building2, Users, BookOpen, ChevronDown, ChevronUp, Database } from 'lucide-react';
 import OracleMigrationWizard from '@/components/OracleMigrationWizard';
 import BranchesManagement from './BranchesManagement';
 import UsersManagement from './UsersManagement';
 import { useAuth } from '@/context/AuthContext';
 
-interface BackupFile {
-  name: string;
-  size: number;
-  created: string;
-}
-
-type SettingsTab = 'branches' | 'users' | 'data' | 'guide' | 'oracle';
+type SettingsTab = 'branches' | 'users' | 'oracle' | 'guide';
 
 export default function SettingsPage() {
-  const { showToast } = useToast();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const canManageUsers = isSuperAdmin || user?.role === 'HQ_MANAGER';
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>(() => canManageUsers ? 'branches' : 'data');
-  const [autoBackup, setAutoBackup] = useState(() => {
-    const saved = localStorage.getItem('autoBackup');
-    return saved === 'true';
-  });
-  const [loading, setLoading] = useState(false);
-  const [backupFiles, setBackupFiles] = useState<BackupFile[]>([]);
-  const [showMfaModal, setShowMfaModal] = useState(false);
-  const [mfaCode, setMfaCode] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => canManageUsers ? 'branches' : 'guide');
   const [activeHelpTab, setActiveHelpTab] = useState<string | null>(null);
 
   const toggleHelpTab = (tab: string) => {
     setActiveHelpTab(activeHelpTab === tab ? null : tab);
-  };
-
-  const loadBackupFiles = async () => {
-    try {
-      const data = await backupApi.list();
-      setBackupFiles(data.files || []);
-    } catch (err) {
-      console.error('Failed to load backup files:', err);
-    }
-  };
-
-  useEffect(() => {
-    loadBackupFiles();
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('autoBackup', String(autoBackup));
-  }, [autoBackup]);
-
-  const handleBackup = async () => {
-    setLoading(true);
-    try {
-      const data = await backupApi.export();
-      const url = window.URL.createObjectURL(new Blob([data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `murabha-backup-${new Date().toISOString().split('T')[0]}.db`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      showToast('تم تحميل النسخة الاحتياطية', 'success');
-    } catch (err) {
-      console.error('Backup failed:', err);
-      showToast('فشل تحميل النسخة الاحتياطية', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setLoading(true);
-    try {
-      await backupApi.import(file);
-      showToast('تم استعادة النسخة الاحتياطية بنجاح، يرجى إعادة تحميل الصفحة', 'success');
-      setTimeout(() => window.location.reload(), 2000);
-    } catch (err) {
-      console.error('Restore failed:', err);
-      showToast('فشل استعادة النسخة الاحتياطية', 'error');
-    } finally {
-      setLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleAutoBackup = async () => {
-    setLoading(true);
-    try {
-      await backupApi.auto();
-      showToast('تم إنشاء النسخ الاحتياطي التلقائي', 'success');
-      loadBackupFiles();
-    } catch (err) {
-      console.error('Auto backup failed:', err);
-      showToast('فشل إنشاء النسخ الاحتياطي التلقائي', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetDatabase = async () => {
-    if (!mfaCode) {
-      showToast('يرجى إدخال رمز التحقق', 'error');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await adminApi.resetDatabase(mfaCode);
-      showToast('تم تصفير قاعدة البيانات بنجاح', 'success');
-      setShowMfaModal(false);
-      setMfaCode('');
-      setTimeout(() => window.location.reload(), 2000);
-    } catch (err: any) {
-      console.error('Reset failed:', err);
-      showToast(err.response?.data?.error || 'فشل تصفير قاعدة البيانات', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFullExport = async () => {
-    setLoading(true);
-    try {
-      const data = await exportApi.full();
-      const url = window.URL.createObjectURL(new Blob([data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `murabha-full-export-${new Date().toISOString().split('T')[0]}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      showToast('تم تصدير البيانات الكاملة بنجاح', 'success');
-    } catch (err) {
-      console.error('Full export failed:', err);
-      showToast('فشل تصدير البيانات', 'error');
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -189,18 +59,6 @@ export default function SettingsPage() {
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('data')}
-          className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
-            activeTab === 'data'
-              ? 'bg-[#0A2472] text-white shadow-lg shadow-[#0A2472]/20 scale-[1.02]'
-              : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
-          }`}
-        >
-          <FileSpreadsheet className="w-4 h-4" />
-          <span>النسخ والبيانات</span>
-        </button>
 
         {isSuperAdmin && (
           <button
@@ -245,173 +103,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Tab: Backups & Data Section */}
-      {activeTab === 'data' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          {/* Full Data Export */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <FileSpreadsheet className="w-5 h-5 text-[#0A2472]" />
-              <h2 className="text-lg font-semibold">تصدير البيانات الكاملة (Excel)</h2>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-emerald-50/50 border border-emerald-100 rounded-lg">
-              <div>
-                <h3 className="font-medium text-emerald-900">تصدير كل البيانات</h3>
-                <p className="text-sm text-emerald-700 mt-1">
-                  ملف Excel يطابق تمبليت الاستيراد + تفاصيل إضافية (الحالة، المتبقي، المتأخرات)
-                </p>
-              </div>
-              <PrimaryButton onClick={handleFullExport} disabled={loading}>
-                <Download size={16} className="ml-2" />
-                تصدير Excel
-              </PrimaryButton>
-            </div>
-          </div>
-
-          {/* Backup Section */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Settings className="w-5 h-5 text-[#0A2472]" />
-              <h2 className="text-lg font-semibold">النسخ الاحتياطي</h2>
-            </div>
-
-            <div className="space-y-4">
-              {/* Manual Backup */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                <div>
-                  <h3 className="font-medium">النسخ الاحتياطي اليدوي</h3>
-                  <p className="text-sm text-slate-500">تحميل نسخة من قاعدة البيانات</p>
-                </div>
-                <PrimaryButton onClick={handleBackup} disabled={loading}>
-                  <Download size={16} className="ml-2" />
-                  تحميل
-                </PrimaryButton>
-              </div>
-
-              {/* Auto Backup Toggle */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                <div>
-                  <h3 className="font-medium">النسخ الاحتياطي التلقائي</h3>
-                  <p className="text-sm text-slate-500">تفعيل النسخ التلقائي (يدوي)</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAutoBackup(!autoBackup)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    autoBackup ? 'bg-emerald-500' : 'bg-slate-300'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      autoBackup ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Create Auto Backup Now */}
-              {autoBackup && (
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                  <div>
-                    <h3 className="font-medium">إنشاء نسخ تلقائي الآن</h3>
-                    <p className="text-sm text-slate-500">إنشاء نسخة في مجلد النسخ التلقائي</p>
-                  </div>
-                  <PrimaryButton onClick={handleAutoBackup} disabled={loading}>
-                    <RefreshCw size={16} className="ml-2" />
-                    إنشاء
-                  </PrimaryButton>
-                </div>
-              )}
-
-              {/* Restore */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                <div>
-                  <h3 className="font-medium">استعادة نسخة</h3>
-                  <p className="text-sm text-slate-500">رفع نسخة احتياطية سابقة</p>
-                </div>
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".db"
-                    onChange={handleRestore}
-                    className="hidden"
-                    id="restore-input"
-                  />
-                  <label htmlFor="restore-input" className="cursor-pointer">
-                    <span className="inline-flex items-center justify-center font-bold rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 px-3 py-1.5 text-xs bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-400 border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                      <Upload size={16} className="ml-2" />
-                      رفع
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Auto Backup Files List */}
-              {autoBackup && backupFiles.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="font-medium mb-2">النسخ التلقائية ({backupFiles.length})</h3>
-                  <div className="max-h-48 overflow-y-auto space-y-1">
-                    {backupFiles.slice(0, 5).map((file) => (
-                      <div key={file.name} className="flex items-center justify-between text-sm p-2 bg-slate-50 rounded">
-                        <span className="text-slate-600">{file.name}</span>
-                        <span className="text-slate-400 text-xs">
-                          {new Date(file.created).toLocaleDateString('ar-EG')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Admin Security */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Lock className="w-5 h-5 text-[#0A2472]" />
-              <h2 className="text-lg font-semibold">الأمان والإدارة</h2>
-            </div>
-            <div className="space-y-4">
-              <div className="p-4 bg-amber-50 border border-amber-100 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <ShieldCheck className="w-5 h-5 text-amber-600 mt-0.5" />
-                  <div>
-                    <h3 className="font-medium text-amber-900">حماية الخبير (MFA)</h3>
-                    <p className="text-sm text-amber-700 mt-1">
-                      العمليات الحساسة مثل تصفير قاعدة البيانات محمية بكلمة مرور متغيرة من هاتف المسؤول.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Danger Zone */}
-          <div className="bg-white rounded-xl shadow-sm border border-red-100 p-6 ring-1 ring-red-50">
-            <div className="flex items-center gap-3 mb-4">
-              <Trash2 className="w-5 h-5 text-red-600" />
-              <h2 className="text-lg font-semibold text-red-600">منطقة الخطر</h2>
-            </div>
-            <div className="p-4 border border-red-100 rounded-lg bg-red-50/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-red-900">تصفير قاعدة البيانات</h3>
-                  <p className="text-sm text-red-600">حذف جميع المبيعات والعملاء والمدفوعات نهائياً.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowMfaModal(true)}
-                  disabled={loading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-semibold text-sm disabled:opacity-50"
-                >
-                  تصفير الآن
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Tab: Help Center */}
       {activeTab === 'guide' && (
@@ -662,53 +353,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* MFA Modal */}
-      {showMfaModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Lock className="w-8 h-8 text-[#0A2472]" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">تأكيد رمز الأمان</h3>
-              <p className="text-sm text-slate-500 mb-6">
-                يرجى إدخال الرمز المكون من 6 أرقام من تطبيق Google Authenticator الخاص بك.
-              </p>
-              
-              <div className="relative">
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={mfaCode}
-                  onChange={(e) => setMfaCode(e.target.value.replace(/[^0-9]/g, ''))}
-                  placeholder="000000"
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-3xl font-bold tracking-[1em] focus:border-[#0A2472] focus:outline-none transition-colors"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={handleResetDatabase}
-                  disabled={loading || mfaCode.length < 6}
-                  className="flex-1 py-3 bg-[#0A2472] text-white rounded-xl font-bold hover:bg-blue-900 transition-colors disabled:opacity-50"
-                >
-                  {loading ? 'جاري التحقق...' : 'تأكيد التصفير'}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowMfaModal(false);
-                    setMfaCode('');
-                  }}
-                  className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
-                >
-                  إلغاء
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

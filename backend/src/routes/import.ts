@@ -3,6 +3,8 @@ import multer from 'multer';
 import prisma from '../lib/prisma.js';
 import XLSX from 'xlsx';
 import { addMonths } from '../utils/helpers.js';
+import { requireRoles } from '../middleware/auth.js';
+import { UserRole } from '../entities/User.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -61,7 +63,7 @@ function parseDate(dateStr: string | number): Date | null {
   }
 }
 
-router.post('/preview', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/preview', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserRole.BRANCH_MANAGER), upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -107,7 +109,7 @@ router.post('/preview', upload.single('file'), async (req: Request, res: Respons
   }
 });
 
-router.post('/excel', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserRole.BRANCH_MANAGER), upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: 'No file uploaded' });
@@ -228,7 +230,13 @@ router.post('/excel', upload.single('file'), async (req: Request, res: Response)
         
         if (!customer) {
           customer = await prisma.customer.create({
-            data: { bkCode, customerType, name: customerName, department: department || null }
+            data: {
+              bkCode,
+              customerType,
+              name: customerName,
+              department: department || null,
+              branchId: req.branchId || undefined,
+            }
           });
           results.customersCreated++;
         } else {
@@ -266,6 +274,7 @@ router.post('/excel', upload.single('file'), async (req: Request, res: Response)
             firstDueDate: months > 0 && saleDate ? addMonths(new Date(saleDate), 2) : undefined,
             months,
             status: remainingAfterAllPaid <= 0.01 ? 'COMPLETED' : 'ACTIVE',
+            branchId: req.branchId || customer.branchId || undefined,
           }
         });
 

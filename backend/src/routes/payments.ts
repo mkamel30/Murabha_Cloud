@@ -2,6 +2,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { PaymentRepository, SaleRepository } from '../repositories/index.js';
 import { SaleService } from '../services/saleService.js';
 import prisma from '../lib/prisma.js';
+import { requireRoles } from '../middleware/auth.js';
+import { UserRole } from '../entities/User.js';
 
 const router = Router();
 const paymentRepo = new PaymentRepository();
@@ -27,6 +29,9 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     const payment = await paymentRepo.findById(req.params.id as string);
     if (!payment) {
       return res.status(404).json({ error: 'الدفع غير موجود' });
+    }
+    if (req.branchId && (payment as any).sale?.branchId && (payment as any).sale.branchId !== req.branchId) {
+      return res.status(403).json({ error: 'غير مصرح لك بالوصول إلى دفعات فرع آخر' });
     }
     res.json(payment);
   } catch (error) {
@@ -59,8 +64,15 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 const saleService = new SaleService();
 
-router.post('/:id/void', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/void', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserRole.HQ_ACCOUNTANT, UserRole.BRANCH_MANAGER), async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const payment = await paymentRepo.findById(req.params.id as string);
+    if (!payment) {
+      return res.status(404).json({ error: 'الدفع غير موجود' });
+    }
+    if (req.branchId && (payment as any).sale?.branchId && (payment as any).sale.branchId !== req.branchId) {
+      return res.status(403).json({ error: 'غير مصرح لك بإلغاء دفعات فرع آخر' });
+    }
     const result = await saleService.voidPayment(req.params.id as string);
     res.json(result);
   } catch (error) {
@@ -68,7 +80,7 @@ router.post('/:id/void', async (req: Request, res: Response, next: NextFunction)
   }
 });
 
-router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:id', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserRole.HQ_ACCOUNTANT, UserRole.BRANCH_MANAGER), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const { receiptNumber, paidAt } = req.body;
@@ -85,6 +97,10 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
       
       if (!payment) {
         throw new Error('الدفع غير موجود');
+      }
+
+      if (req.branchId && payment.sale?.branchId && payment.sale.branchId !== req.branchId) {
+        throw new Error('غير مصرح لك بتعديل دفعات فرع آخر');
       }
       
       const newPaidAt = paidAt ? new Date(paidAt) : payment.paidAt;

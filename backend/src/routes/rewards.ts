@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma.js';
+import { requireRoles } from '../middleware/auth.js';
+import { UserRole } from '../entities/User.js';
 
 const router = Router();
 
-router.post('/waive-installments', async (req: Request, res: Response) => {
+router.post('/waive-installments', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserRole.BRANCH_MANAGER), async (req: Request, res: Response) => {
   try {
     const { saleId, installmentIds, reason } = req.body;
 
@@ -19,6 +21,11 @@ router.post('/waive-installments', async (req: Request, res: Response) => {
 
     if (!sale) {
       res.status(404).json({ error: 'البيع غير موجود' });
+      return;
+    }
+
+    if (req.branchId && sale.branchId && sale.branchId !== req.branchId) {
+      res.status(403).json({ error: 'غير مصرح لك بتنزيل أقساط لمبيعات فرع آخر' });
       return;
     }
 

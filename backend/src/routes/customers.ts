@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { CustomerService } from '../services/customerService.js';
 import { customerSchema, updateCustomerSchema } from '../validators/schemas.js';
+import { requireRoles } from '../middleware/auth.js';
+import { UserRole } from '../entities/User.js';
 
 const router = Router();
 const customerService = new CustomerService();
@@ -50,6 +52,9 @@ router.get('/generate-bkcode', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const customer = await customerService.getById(req.params.id as string);
+    if (req.branchId && customer.branchId && customer.branchId !== req.branchId) {
+      return res.status(403).json({ error: 'غير مصرح لك بالوصول إلى بيانات هذا العميل (تابع لفرع آخر)' });
+    }
     res.json(customer);
   } catch (error) {
     next(error);
@@ -68,6 +73,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const existing = await customerService.getById(req.params.id as string);
+    if (req.branchId && existing.branchId && existing.branchId !== req.branchId) {
+      return res.status(403).json({ error: 'غير مصرح لك بتعديل بيانات هذا العميل (تابع لفرع آخر)' });
+    }
     const data = validateUpdateCustomer(req.body);
     const customer = await customerService.update(req.params.id as string, data);
     res.json(customer);
@@ -76,8 +85,12 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER), async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const existing = await customerService.getById(req.params.id as string);
+    if (req.branchId && existing.branchId && existing.branchId !== req.branchId) {
+      return res.status(403).json({ error: 'غير مصرح لك بحذف هذا العميل' });
+    }
     await customerService.delete(req.params.id as string);
     res.status(204).send();
   } catch (error) {
