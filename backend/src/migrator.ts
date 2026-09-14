@@ -64,6 +64,14 @@ const MIGRATIONS: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_installment_branchId ON Installment(branchId);`,
       `CREATE INDEX IF NOT EXISTS idx_payment_branchId ON Payment(branchId);`
     ]
+  },
+  {
+    version: '1.0.7',
+    description: 'إضافة دعم مباشر لحقل الفرع لجدول المتابعات FollowUp',
+    sql: [
+      `ALTER TABLE FollowUp ADD COLUMN branchId TEXT;`,
+      `CREATE INDEX IF NOT EXISTS idx_followup_branchId ON FollowUp(branchId);`
+    ]
   }
 ];
 
@@ -135,7 +143,10 @@ async function backfillBranchIds(prisma: PrismaClient): Promise<void> {
     await prisma.$executeRawUnsafe(
       `UPDATE Payment SET branchId = '${defaultBranchId}' WHERE branchId IS NULL OR branchId = '';`
     );
-    console.log('✅ Backfilled all customers, sales, installments & payments to القاهرة-الجيش.');
+    await prisma.$executeRawUnsafe(
+      `UPDATE FollowUp SET branchId = '${defaultBranchId}' WHERE branchId IS NULL OR branchId = '';`
+    );
+    console.log('✅ Backfilled all customers, sales, installments, payments & followups to القاهرة-الجيش.');
   } catch (err: any) {
     // Ignore error if columns don't exist yet
   }

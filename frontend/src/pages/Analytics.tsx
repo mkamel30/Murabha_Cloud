@@ -159,8 +159,8 @@ export default function Analytics() {
               <p className="text-sm text-slate-500">بناءً على تواريخ استحقاق الأقساط النشطة غير المسددة</p>
             </div>
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[300px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={cashFlowForecast} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
@@ -179,11 +179,11 @@ export default function Analytics() {
         </div>
 
         {/* Payment Channels */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/50">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/50 min-w-0">
           <h3 className="text-lg font-bold text-slate-900 mb-2">توزيع قنوات التحصيل</h3>
           <p className="text-sm text-slate-500 mb-6">حسب أماكن الدفع في الفترة المحددة</p>
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[250px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart>
                 <Pie
                   data={formattedChannels}
@@ -210,7 +210,7 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Overdue Risk */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/50">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/50 min-w-0">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-rose-50 rounded-lg text-rose-500"><AlertTriangle className="w-5 h-5"/></div>
             <div>
@@ -218,8 +218,8 @@ export default function Analytics() {
               <p className="text-sm text-slate-500">إجمالي الأقساط المتأخرة مقسمة حسب فترة التأخير</p>
             </div>
           </div>
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[280px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={overdueRisk} margin={{ top: 20, right: 30, left: 20, bottom: 5 }} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                 <XAxis type="number" tickFormatter={(val) => `${val / 1000}k`} tick={{fill: '#64748B'}} />

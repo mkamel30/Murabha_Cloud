@@ -223,11 +223,11 @@ export default function Dashboard() {
       {/* Charts Row - Now at bottom */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Pie Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 min-w-0">
           <h3 className="text-sm font-semibold text-slate-700 mb-4">المبيعات</h3>
-          <div className="h-64 min-h-[256px]">
+          <div className="h-64 min-h-[256px] w-full min-w-0">
             {salesPieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                 <PieChart>
                   <Pie
                     data={salesPieData}
@@ -255,10 +255,10 @@ export default function Dashboard() {
         </div>
 
         {/* Collections vs Remaining */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 min-w-0">
           <h3 className="text-sm font-semibold text-slate-700 mb-4">المحفظة</h3>
-          <div className="h-64 min-h-[256px]">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 min-h-[256px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
               <PieChart>
                 <Pie
                   data={collectionsPieData}
@@ -282,10 +282,10 @@ export default function Dashboard() {
       </div>
 
       {/* Bar Chart - Overdue vs Due */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 min-w-0">
         <h3 className="text-sm font-semibold text-slate-700 mb-4">الأقساط</h3>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-64 min-h-[256px] w-full min-w-0">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
             <BarChart data={overdueBarData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" tickFormatter={(v) => formatCurrency(v)} />

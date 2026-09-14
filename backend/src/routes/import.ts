@@ -236,7 +236,7 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
               name: customerName,
               department: department || null,
               branchId: req.branchId || undefined,
-            }
+            } as any
           });
           results.customersCreated++;
         } else {
@@ -274,8 +274,8 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
             firstDueDate: months > 0 && saleDate ? addMonths(new Date(saleDate), 2) : undefined,
             months,
             status: remainingAfterAllPaid <= 0.01 ? 'COMPLETED' : 'ACTIVE',
-            branchId: req.branchId || customer.branchId || undefined,
-          }
+            branchId: req.branchId || (customer as any).branchId || undefined,
+          } as any
         });
 
         results.salesCreated++;

@@ -60,7 +60,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     if (!sale) {
       return res.status(404).json({ error: 'العملية غير موجودة' });
     }
-    if (req.branchId && sale.branchId && sale.branchId !== req.branchId) {
+    if (req.branchId && (sale as any).branchId && (sale as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بالوصول إلى بيانات هذه المبيعة (تابعة لفرع آخر)' });
     }
     res.json(sale);
@@ -83,7 +83,7 @@ router.post('/:id/preview-payment', async (req: Request, res: Response, next: Ne
   try {
     const sale = await saleService.getById(req.params.id as string);
     if (!sale) return res.status(404).json({ error: 'العملية غير موجودة' });
-    if (req.branchId && sale.branchId && sale.branchId !== req.branchId) {
+    if (req.branchId && (sale as any).branchId && (sale as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بإجراء عمليات على مبيعات فرع آخر' });
     }
     const { amount, installmentIds } = req.body;
@@ -98,7 +98,7 @@ router.post('/:id/pay', async (req: Request, res: Response, next: NextFunction) 
   try {
     const sale = await saleService.getById(req.params.id as string);
     if (!sale) return res.status(404).json({ error: 'العملية غير موجودة' });
-    if (req.branchId && sale.branchId && sale.branchId !== req.branchId) {
+    if (req.branchId && (sale as any).branchId && (sale as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بالسداد لمبيعات فرع آخر' });
     }
     if (!req.body.saleId) req.body.saleId = req.params.id;
@@ -124,7 +124,7 @@ router.post('/:id/payment', async (req: Request, res: Response, next: NextFuncti
   try {
     const sale = await saleService.getById(req.params.id as string);
     if (!sale) return res.status(404).json({ error: 'العملية غير موجودة' });
-    if (req.branchId && sale.branchId && sale.branchId !== req.branchId) {
+    if (req.branchId && (sale as any).branchId && (sale as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بالسداد لمبيعات فرع آخر' });
     }
     if (!req.body.saleId) req.body.saleId = req.params.id;
@@ -167,7 +167,7 @@ router.post('/:id/void', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER,
   try {
     const existing = await saleService.getById(req.params.id as string);
     if (!existing) return res.status(404).json({ error: 'العملية غير موجودة' });
-    if (req.branchId && existing.branchId && existing.branchId !== req.branchId) {
+    if (req.branchId && (existing as any).branchId && (existing as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بإلغاء مبيعات فرع آخر' });
     }
     const data = validateVoid(req.body);
@@ -182,7 +182,7 @@ router.post('/:id/recalculate', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_M
   try {
     const existing = await saleService.getById(req.params.id as string);
     if (!existing) return res.status(404).json({ error: 'العملية غير موجودة' });
-    if (req.branchId && existing.branchId && existing.branchId !== req.branchId) {
+    if (req.branchId && (existing as any).branchId && (existing as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بتعديل مبيعات فرع آخر' });
     }
     const data = validateRecalculate(req.body);
@@ -206,7 +206,7 @@ router.post('/:id/full-recalculate', requireRoles(UserRole.SUPER_ADMIN, UserRole
   try {
     const existing = await saleService.getById(req.params.id as string);
     if (!existing) return res.status(404).json({ error: 'العملية غير موجودة' });
-    if (req.branchId && existing.branchId && existing.branchId !== req.branchId) {
+    if (req.branchId && (existing as any).branchId && (existing as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بتعديل مبيعات فرع آخر' });
     }
     const data = validateFullRecalculate(req.body);
@@ -221,7 +221,7 @@ router.put('/:id', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserR
   try {
     const existing = await saleService.getById(req.params.id as string);
     if (!existing) return res.status(404).json({ error: 'العملية غير موجودة' });
-    if (req.branchId && existing.branchId && existing.branchId !== req.branchId) {
+    if (req.branchId && (existing as any).branchId && (existing as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بتعديل مبيعات فرع آخر' });
     }
     // Only allow updating notes and payment place safely
@@ -241,7 +241,7 @@ router.delete('/:id', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER), a
   try {
     const sale = await saleRepo.findById(req.params.id as string);
     if (!sale) return res.status(404).json({ error: 'العملية غير موجودة' });
-    if (req.branchId && sale.branchId && sale.branchId !== req.branchId) {
+    if (req.branchId && (sale as any).branchId && (sale as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بحذف مبيعات فرع آخر' });
     }
     if (sale.payments.length > 0) return res.status(403).json({ error: 'Cannot delete sale with existing payments' });

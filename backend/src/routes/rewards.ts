@@ -24,7 +24,7 @@ router.post('/waive-installments', requireRoles(UserRole.SUPER_ADMIN, UserRole.H
       return;
     }
 
-    if (req.branchId && sale.branchId && sale.branchId !== req.branchId) {
+    if (req.branchId && (sale as any).branchId && (sale as any).branchId !== req.branchId) {
       res.status(403).json({ error: 'غير مصرح لك بتنزيل أقساط لمبيعات فرع آخر' });
       return;
     }

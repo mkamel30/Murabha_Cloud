@@ -52,7 +52,7 @@ router.get('/generate-bkcode', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const customer = await customerService.getById(req.params.id as string);
-    if (req.branchId && customer.branchId && customer.branchId !== req.branchId) {
+    if (req.branchId && (customer as any).branchId && (customer as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بالوصول إلى بيانات هذا العميل (تابع لفرع آخر)' });
     }
     res.json(customer);
@@ -74,7 +74,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const existing = await customerService.getById(req.params.id as string);
-    if (req.branchId && existing.branchId && existing.branchId !== req.branchId) {
+    if (req.branchId && (existing as any).branchId && (existing as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بتعديل بيانات هذا العميل (تابع لفرع آخر)' });
     }
     const data = validateUpdateCustomer(req.body);
@@ -88,7 +88,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.delete('/:id', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const existing = await customerService.getById(req.params.id as string);
-    if (req.branchId && existing.branchId && existing.branchId !== req.branchId) {
+    if (req.branchId && (existing as any).branchId && (existing as any).branchId !== req.branchId) {
       return res.status(403).json({ error: 'غير مصرح لك بحذف هذا العميل' });
     }
     await customerService.delete(req.params.id as string);

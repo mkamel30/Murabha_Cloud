@@ -99,7 +99,7 @@ router.put('/:id', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, UserR
         throw new Error('الدفع غير موجود');
       }
 
-      if (req.branchId && payment.sale?.branchId && payment.sale.branchId !== req.branchId) {
+      if (req.branchId && (payment.sale as any)?.branchId && (payment.sale as any).branchId !== req.branchId) {
         throw new Error('غير مصرح لك بتعديل دفعات فرع آخر');
       }
       

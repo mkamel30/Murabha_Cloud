@@ -26,7 +26,7 @@ export class CustomerService {
       error.statusCode = 400;
       throw error;
     }
-    const createData: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> = {
+    const createData: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> & { branchId?: string | null } = {
       bkCode: data.bkCode,
       customerType: data.customerType,
       name: data.name,
