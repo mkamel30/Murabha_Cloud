@@ -22,7 +22,7 @@ export const updateCustomerSchema = z.object({
 
 export const saleSchema = z.object({
   customerId: z.string().uuid('معرف العميل مطلوب'),
-  machineSerial: z.string().min(1, 'رقم الماكينة مطلوب').max(100, 'رقم الماكينة يجب أن لا يتجاوز 100 حرف').trim(),
+  machineSerial: z.string().min(1, 'رقم الماكينة مطلوب').max(100, 'رقم الماكينة يجب أن لا يتجاوز 100 حرف').trim().transform(val => val.toUpperCase()),
   saleType: z.enum(['CASH', 'INSTALLMENT']),
   totalPrice: z.number().positive('سعر المبيعات يجب أن يكون موجباً').max(100000000, 'السعر كبير جداً'),
   downPayment: z.number().min(0, 'الدفعة المقدمة لا يمكن أن تكون سالبة').default(0),

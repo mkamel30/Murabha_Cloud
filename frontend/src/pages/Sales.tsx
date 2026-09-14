@@ -327,8 +327,8 @@ export default function Sales() {
                 <input
                   type="text"
                   value={formData.machineSerial}
-                  onChange={(e) => setFormData({ ...formData, machineSerial: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
+                  onChange={(e) => setFormData({ ...formData, machineSerial: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
                   required
                 />
               </div>

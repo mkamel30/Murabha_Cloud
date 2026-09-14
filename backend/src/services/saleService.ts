@@ -31,7 +31,8 @@ export class SaleService {
       throw error;
     }
 
-    const existingMachine = await saleRepo.findByMachineSerial(data.machineSerial);
+    const machineSerial = data.machineSerial.trim().toUpperCase();
+    const existingMachine = await saleRepo.findByMachineSerial(machineSerial);
     if (existingMachine) {
       const customerName = (existingMachine as any).customer?.name || 'عميل غير معروف';
       const error = new Error(`رقم الماكينة مسجل بالفعل للعميل: ${customerName}`) as Error & { statusCode: number };
@@ -124,7 +125,7 @@ export class SaleService {
         data: {
           receiptNumber,
           customerId: data.customerId,
-          machineSerial: data.machineSerial,
+          machineSerial,
           saleType: data.saleType,
           totalPrice: data.totalPrice,
           downPayment: internalDownPayment,

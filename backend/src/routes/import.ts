@@ -261,7 +261,7 @@ router.post('/excel', requireRoles(UserRole.SUPER_ADMIN, UserRole.HQ_MANAGER, Us
       const customerType = columnMap.customerType >= 0 ? String(row[columnMap.customerType] || 'عام').trim() : 'عام';
       const customerName = String(row[columnMap.customerName] || '').trim();
       const department = columnMap.department >= 0 ? String(row[columnMap.department] || '').trim() : '';
-      const machineSerial = columnMap.machineSerial >= 0 ? String(row[columnMap.machineSerial] || '').trim() : '';
+      const machineSerial = columnMap.machineSerial >= 0 ? String(row[columnMap.machineSerial] || '').trim().toUpperCase() : '';
 
       // Numeric validations
       const totalPrice = parseNumber(row[columnMap.totalPrice], null);
