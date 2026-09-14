@@ -1,6 +1,9 @@
+import { Prisma } from '@prisma/client';
 import { AppDataSource } from '../data-source.js';
 import { Branch, Customer, MachineSale, Installment, Payment } from '../entities/index.js';
 import prisma from '../lib/prisma.js';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class HQDashboardService {
   async getHQStats(filterBranchId?: string | null) {
@@ -10,12 +13,12 @@ export class HQDashboardService {
     const instRepo = AppDataSource.getRepository(Installment);
     const customerRepo = AppDataSource.getRepository(Customer);
 
+    // Timing boundaries
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const nowIso = todayStart.toISOString();
     const todayStartIso = todayStart.toISOString();
     const todayEndIso = todayEnd.toISOString();
 
@@ -23,13 +26,26 @@ export class HQDashboardService {
     const branchMap = new Map<string, string>();
     branches.forEach(b => branchMap.set(b.id, b.name));
 
-    // 1. Try Live Prisma SQLite Operational Database First
+    // Defensive validation of branchId to prevent any SQL injection or IDOR
+    let safeBranchId: string | null = null;
+    if (filterBranchId && filterBranchId !== 'ALL') {
+      if (UUID_REGEX.test(filterBranchId)) {
+        safeBranchId = filterBranchId;
+      } else {
+        console.warn(`[HQDashboard] Malformed branchId rejected: ${filterBranchId}`);
+      }
+    }
+
+    // 1. Primary Path: Live Prisma SQLite Operational Database (Parameterized Queries)
     try {
-      const branchFilterSql = filterBranchId && filterBranchId !== 'ALL' ? `AND branchId = '${filterBranchId}'` : '';
-      const branchWhereSql = filterBranchId && filterBranchId !== 'ALL' ? `WHERE branchId = '${filterBranchId}'` : '';
+      const branchCondSale = safeBranchId ? Prisma.sql`AND branchId = ${safeBranchId}` : Prisma.empty;
+      const branchCondPay = safeBranchId ? Prisma.sql`AND branchId = ${safeBranchId}` : Prisma.empty;
+      const branchCondInst = safeBranchId ? Prisma.sql`AND i.branchId = ${safeBranchId}` : Prisma.empty;
+      const branchCondCust = safeBranchId ? Prisma.sql`WHERE branchId = ${safeBranchId}` : Prisma.empty;
+      const branchCondRecentPay = safeBranchId ? Prisma.sql`WHERE p.branchId = ${safeBranchId}` : Prisma.empty;
 
       const [salesRows, todayPayRows, overdueRows, custRows, recentRows] = await Promise.all([
-        prisma.$queryRawUnsafe<any[]>(`
+        prisma.$queryRaw<any[]>`
           SELECT 
             COUNT(id) as count,
             COALESCE(SUM(totalPrice), 0) as totalPrice,
@@ -38,29 +54,29 @@ export class HQDashboardService {
             COALESCE(SUM(CASE WHEN saleType = 'كاش' OR saleType = 'CASH' THEN totalPrice ELSE 0 END), 0) as cashSales,
             COALESCE(SUM(CASE WHEN saleType != 'كاش' AND saleType != 'CASH' THEN totalPrice ELSE 0 END), 0) as installmentSales
           FROM MachineSale
-          WHERE status != 'VOIDED' ${branchFilterSql}
-        `),
-        prisma.$queryRawUnsafe<any[]>(`
+          WHERE status != 'VOIDED' ${branchCondSale}
+        `,
+        prisma.$queryRaw<any[]>`
           SELECT 
             COUNT(id) as count,
             COALESCE(SUM(amount), 0) as total
           FROM Payment
-          WHERE paidAt >= '${todayStartIso}' AND paidAt <= '${todayEndIso}'
-          ${branchFilterSql}
-        `),
-        prisma.$queryRawUnsafe<any[]>(`
+          WHERE paidAt >= ${todayStartIso} AND paidAt <= ${todayEndIso}
+          ${branchCondPay}
+        `,
+        prisma.$queryRaw<any[]>`
           SELECT 
             COUNT(i.id) as count,
             COALESCE(SUM(i.amount - i.paidAmount), 0) as total
           FROM Installment i
           JOIN MachineSale s ON i.saleId = s.id
-          WHERE i.isPaid = 0 AND i.dueDate < '${nowIso}' AND s.status = 'ACTIVE'
-          ${filterBranchId && filterBranchId !== 'ALL' ? `AND i.branchId = '${filterBranchId}'` : ''}
-        `),
-        prisma.$queryRawUnsafe<any[]>(`
-          SELECT COUNT(id) as count FROM Customer ${branchWhereSql}
-        `),
-        prisma.$queryRawUnsafe<any[]>(`
+          WHERE i.isPaid = 0 AND i.dueDate < ${todayStartIso} AND s.status = 'ACTIVE'
+          ${branchCondInst}
+        `,
+        prisma.$queryRaw<any[]>`
+          SELECT COUNT(id) as count FROM Customer ${branchCondCust}
+        `,
+        prisma.$queryRaw<any[]>`
           SELECT 
             p.id,
             p.receiptNumber,
@@ -74,64 +90,96 @@ export class HQDashboardService {
           FROM Payment p
           LEFT JOIN MachineSale s ON p.saleId = s.id
           LEFT JOIN Customer c ON s.customerId = c.id
-          ${filterBranchId && filterBranchId !== 'ALL' ? `WHERE p.branchId = '${filterBranchId}'` : ''}
+          ${branchCondRecentPay}
           ORDER BY p.paidAt DESC
           LIMIT 8
-        `),
+        `,
       ]);
 
       const salesCount = Number(salesRows[0]?.count || 0);
+      const custCount = Number(custRows[0]?.count || 0);
 
-      // If Prisma has live data, assemble dashboard metrics
-      if (salesCount > 0) {
+      // If Prisma has data or tables exist, build response cleanly
+      if (salesCount > 0 || custCount > 0) {
         const totalPrice = Number(salesRows[0]?.totalPrice || 0);
         const totalPaid = Number(salesRows[0]?.totalPaid || 0);
         const overallRatio = totalPrice > 0 ? Math.round((totalPaid / totalPrice) * 100) : 0;
 
-        // Benchmarks strictly for operational branches (excluding HQ administrative unit)
+        // Batch benchmarks using GROUP BY to eliminate N+1 queries
+        const [groupedSales, groupedOverdue, groupedCust] = await Promise.all([
+          prisma.$queryRaw<Array<{ branchId: string; totalSales: number; totalPaid: number; totalRemaining: number }>>`
+            SELECT 
+              branchId,
+              COALESCE(SUM(totalPrice), 0) as totalSales,
+              COALESCE(SUM(paidAmount), 0) as totalPaid,
+              COALESCE(SUM(remainingAmount), 0) as totalRemaining
+            FROM MachineSale
+            WHERE status != 'VOIDED' AND branchId IS NOT NULL AND branchId != ''
+            GROUP BY branchId
+          `,
+          prisma.$queryRaw<Array<{ branchId: string; count: number; total: number }>>`
+            SELECT 
+              i.branchId,
+              COUNT(i.id) as count,
+              COALESCE(SUM(i.amount - i.paidAmount), 0) as total
+            FROM Installment i
+            JOIN MachineSale s ON i.saleId = s.id
+            WHERE i.isPaid = 0 AND i.dueDate < ${todayStartIso} AND s.status = 'ACTIVE'
+              AND i.branchId IS NOT NULL AND i.branchId != ''
+            GROUP BY i.branchId
+          `,
+          prisma.$queryRaw<Array<{ branchId: string; count: number }>>`
+            SELECT 
+              branchId,
+              COUNT(id) as count
+            FROM Customer
+            WHERE branchId IS NOT NULL AND branchId != ''
+            GROUP BY branchId
+          `,
+        ]);
+
+        const salesMap = new Map<string, { totalSales: number; totalPaid: number; totalRemaining: number }>();
+        for (const r of groupedSales) {
+          salesMap.set(r.branchId, {
+            totalSales: Number(r.totalSales || 0),
+            totalPaid: Number(r.totalPaid || 0),
+            totalRemaining: Number(r.totalRemaining || 0),
+          });
+        }
+
+        const overdueMap = new Map<string, { count: number; total: number }>();
+        for (const r of groupedOverdue) {
+          overdueMap.set(r.branchId, {
+            count: Number(r.count || 0),
+            total: Number(r.total || 0),
+          });
+        }
+
+        const customerMap = new Map<string, number>();
+        for (const r of groupedCust) {
+          customerMap.set(r.branchId, Number(r.count || 0));
+        }
+
         const operationalBranches = branches.filter(b => b.code !== 'HQ');
-        const branchBenchmarks = await Promise.all(
-          operationalBranches.map(async (b) => {
-            const [bSales, bOverdue, bCust] = await Promise.all([
-              prisma.$queryRawUnsafe<any[]>(`
-                SELECT 
-                  COALESCE(SUM(totalPrice), 0) as totalSales,
-                  COALESCE(SUM(paidAmount), 0) as totalPaid,
-                  COALESCE(SUM(remainingAmount), 0) as totalRemaining
-                FROM MachineSale
-                WHERE branchId = '${b.id}' AND status != 'VOIDED'
-              `),
-              prisma.$queryRawUnsafe<any[]>(`
-                SELECT 
-                  COUNT(i.id) as count,
-                  COALESCE(SUM(i.amount - i.paidAmount), 0) as total
-                FROM Installment i
-                JOIN MachineSale s ON i.saleId = s.id
-                WHERE i.branchId = '${b.id}' AND i.isPaid = 0 AND i.dueDate < '${nowIso}' AND s.status = 'ACTIVE'
-              `),
-              prisma.$queryRawUnsafe<any[]>(`
-                SELECT COUNT(id) as count FROM Customer WHERE branchId = '${b.id}'
-              `),
-            ]);
+        const branchBenchmarks = operationalBranches.map((b) => {
+          const sData = salesMap.get(b.id) || { totalSales: 0, totalPaid: 0, totalRemaining: 0 };
+          const oData = overdueMap.get(b.id) || { count: 0, total: 0 };
+          const cCount = customerMap.get(b.id) || 0;
+          const ratio = sData.totalSales > 0 ? Math.round((sData.totalPaid / sData.totalSales) * 100) : 0;
 
-            const bTotalSales = Number(bSales[0]?.totalSales || 0);
-            const bTotalPaid = Number(bSales[0]?.totalPaid || 0);
-            const ratio = bTotalSales > 0 ? Math.round((bTotalPaid / bTotalSales) * 100) : 0;
-
-            return {
-              branchId: b.id,
-              branchName: b.name,
-              branchCode: b.code,
-              customerCount: Number(bCust[0]?.count || 0),
-              totalSales: bTotalSales,
-              totalPaid: bTotalPaid,
-              totalRemaining: Number(bSales[0]?.totalRemaining || 0),
-              overdueAmount: Number(bOverdue[0]?.total || 0),
-              overdueCount: Number(bOverdue[0]?.count || 0),
-              collectionRatio: ratio,
-            };
-          })
-        );
+          return {
+            branchId: b.id,
+            branchName: b.name,
+            branchCode: b.code,
+            customerCount: cCount,
+            totalSales: sData.totalSales,
+            totalPaid: sData.totalPaid,
+            totalRemaining: sData.totalRemaining,
+            overdueAmount: oData.total,
+            overdueCount: oData.count,
+            collectionRatio: ratio,
+          };
+        });
 
         branchBenchmarks.sort((a, b) => b.collectionRatio - a.collectionRatio);
 
@@ -147,7 +195,7 @@ export class HQDashboardService {
           todayCollections: Number(todayPayRows[0]?.total || 0),
           overdueCount: Number(overdueRows[0]?.count || 0),
           overdueTotal: Number(overdueRows[0]?.total || 0),
-          totalCustomers: Number(custRows[0]?.count || 0),
+          totalCustomers: custCount,
           branchBenchmarks,
           recentPayments: recentRows.map((p) => ({
             id: p.id,
@@ -168,7 +216,7 @@ export class HQDashboardService {
 
     // 2. TypeORM Fallback (For automated test runners with mock DB)
     let salesQuery = saleRepo.createQueryBuilder('s').where("s.status != 'VOIDED'");
-    if (filterBranchId) salesQuery = salesQuery.andWhere('s.branchId = :filterBranchId', { filterBranchId });
+    if (safeBranchId) salesQuery = salesQuery.andWhere('s.branchId = :safeBranchId', { safeBranchId });
 
     const salesTotals = await salesQuery
       .select('COUNT(s.id)', 'count')
@@ -180,7 +228,7 @@ export class HQDashboardService {
       .getRawOne();
 
     let todayPayQuery = paymentRepo.createQueryBuilder('p').where('p.paidAt >= :todayStart AND p.paidAt <= :todayEnd', { todayStart, todayEnd });
-    if (filterBranchId) todayPayQuery = todayPayQuery.andWhere('p.branchId = :filterBranchId', { filterBranchId });
+    if (safeBranchId) todayPayQuery = todayPayQuery.andWhere('p.branchId = :safeBranchId', { safeBranchId });
 
     const todayPayTotals = await todayPayQuery
       .select('COUNT(p.id)', 'count')
@@ -189,8 +237,8 @@ export class HQDashboardService {
 
     let overdueQuery = instRepo.createQueryBuilder('i')
       .innerJoin('i.sale', 's')
-      .where("i.isPaid = false AND i.dueDate < :now AND s.status = 'ACTIVE'", { now: todayStart });
-    if (filterBranchId) overdueQuery = overdueQuery.andWhere('i.branchId = :filterBranchId', { filterBranchId });
+      .where("i.isPaid = false AND i.dueDate < :todayStart AND s.status = 'ACTIVE'", { todayStart });
+    if (safeBranchId) overdueQuery = overdueQuery.andWhere('i.branchId = :safeBranchId', { safeBranchId });
 
     const overdueTotals = await overdueQuery
       .select('COUNT(i.id)', 'count')
@@ -198,7 +246,7 @@ export class HQDashboardService {
       .getRawOne();
 
     let custQuery = customerRepo.createQueryBuilder('c');
-    if (filterBranchId) custQuery = custQuery.where('c.branchId = :filterBranchId', { filterBranchId });
+    if (safeBranchId) custQuery = custQuery.where('c.branchId = :safeBranchId', { safeBranchId });
     const totalCustomers = await custQuery.getCount();
 
     // Benchmarks strictly for operational branches (excluding HQ)
@@ -253,7 +301,7 @@ export class HQDashboardService {
       .innerJoinAndSelect('p.branch', 'b')
       .orderBy('p.paidAt', 'DESC')
       .take(8);
-    if (filterBranchId) recentPayQuery = recentPayQuery.where('p.branchId = :filterBranchId', { filterBranchId });
+    if (safeBranchId) recentPayQuery = recentPayQuery.where('p.branchId = :safeBranchId', { safeBranchId });
     const recentPayments = await recentPayQuery.getMany();
 
     const totalPrice = Number(salesTotals?.totalPrice || 0);

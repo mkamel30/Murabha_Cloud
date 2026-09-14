@@ -87,11 +87,6 @@ export const branchesApi = {
   delete: (id: string) => api.delete(`/branches/${id}`).then((r) => r.data),
 };
 
-export const branchApi = {
-  getConfig: () => api.get('/branch/config').then((r) => r.data).catch(() => ({ branchName: '' })),
-  setConfig: (branchName: string) => api.post('/branch/config', { branchName }).then((r) => r.data).catch(() => ({})),
-  exportMonthly: (month: number, year: number) => api.get(`/branch/export-monthly?month=${month}&year=${year}`, { responseType: 'blob' }),
-};
 
 // ---- Oracle Migration Wizard API ----
 export const oracleMigrationApi = {
