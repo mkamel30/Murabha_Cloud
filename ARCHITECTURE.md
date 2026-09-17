@@ -1,6 +1,6 @@
-# System Architecture & Technical Design
+# System Architecture & Technical Design (Java Spring Boot)
 
-This document describes the architectural principles, data flow, multi-branch isolation design, and database portability models powering **Murabha Cloud**.
+This document describes the architectural principles, data flow, multi-branch isolation design, and database portability models powering **Murabha Cloud (Java Spring Boot Edition)**.
 
 ---
 
@@ -10,6 +10,7 @@ This document describes the architectural principles, data flow, multi-branch is
                   ┌─────────────────────────────────┐
                   │   Web Browser Client / SPA UI   │
                   │ (React 18 + Vite + Tailwind CSS)│
+                  │      Port: 2436 (Dev) / 80      │
                   └────────────────┬────────────────┘
                                    │ HTTPS / REST API
                                    ▼
@@ -20,18 +21,19 @@ This document describes the architectural principles, data flow, multi-branch is
                                    │ HTTP
                                    ▼
                   ┌─────────────────────────────────┐
-                  │  Node.js 20 LTS / Express API   │
-                  │  ├── Helmet CSP & Rate Limiter  │
-                  │  ├── JWT Auth & RBAC Guard      │
-                  │  ├── Branch Scoping Middleware  │
-                  │  ├── Audit Logging Service      │
-                  │  └── TypeORM Data Access Layer  │
+                  │   Java Spring Boot 3.3.4 API    │
+                  │  ├── Bucket4j Rate Limiting     │
+                  │  ├── Spring Security 6 & JJWT   │
+                  │  ├── BranchScopeFilter (BOLA)   │
+                  │  ├── Audit Logging Interceptor  │
+                  │  ├── Global @ControllerAdvice   │
+                  │  └── Spring Data JPA / Hibernate│
                   └────────┬───────────────┬────────┘
                            │               │
                            ▼               ▼
                  ┌────────────────┐ ┌────────────────┐
                  │   PostgreSQL   │ │ Oracle Database│
-                 │ Current Engine │ │ Target / Migr. │
+                 │ Staging/Cloud  │ │ Enterprise DB  │
                  └────────────────┘ └────────────────┘
 ```
 
@@ -51,12 +53,12 @@ Every operational record belongs strictly to a branch:
 
 Foreign key constraints prevent any orphaned or branch-less operational records.
 
-### 2. Request Interception & Guardrails (`branchScope.ts`)
-Isolation is enforced centrally before requests hit controller business logic:
+### 2. Request Interception & Guardrails (`BranchScopeFilter.java`)
+Isolation is enforced centrally in the servlet filter chain before requests hit Spring `@RestController` endpoints:
 - The user's authenticated token carries their designated `branchId` and `role`.
 - **For Branch Users** (`BRANCH_MANAGER`, `BRANCH_COLLECTOR`, `BRANCH_DATA_ENTRY`):
-  - The middleware automatically locks the active scope to `user.branchId`.
-  - **Tampering Defense**: If a malicious client attaches a header (e.g., `x-branch-id: other-branch`) or query parameter aiming to access another branch's assets, the middleware flags an unauthorized attempt and halts the request immediately with `403 Forbidden`.
+  - The servlet filter automatically locks the active thread context to `user.branchId`.
+  - **Tampering Defense**: If a malicious client attaches a header (e.g., `x-branch-id: other-branch`) or query parameter aiming to access another branch's assets, the filter flags an unauthorized attempt and halts the request immediately with `403 Forbidden`.
 - **For HQ Executives** (`SUPER_ADMIN`, `HQ_MANAGER`, `HQ_ACCOUNTANT`):
   - These roles are permitted to supply `x-branch-id` to filter views for a specific branch, or omit it to query aggregated data across all company branches.
 
@@ -68,58 +70,57 @@ To support flexible operational models across diverse business units, Murabha Cl
 - **Entity**: `SystemSetting` (`key: varchar(64) PK`, `value: text`, `updatedAt: timestamp`).
 - **REST Endpoints**:
   - `GET /api/settings`: Returns a key-value dictionary of all active system flags.
-  - `PUT /api/settings/:key`: Updates or inserts a configuration property (restricted to `SUPER_ADMIN`).
-- **Example Flag — `enableCashSales`**:
-  - Controls whether the platform accepts immediate full-cash machine purchases or restricts activity purely to installment contracts.
-  - Enforced symmetrically across UI rendering (Sale Type selector) and API controllers (`saleService.ts` rejects cash requests with `400 Bad Request` if disabled).
+  - `PUT /api/settings/{key}`: Atomic updates restricted to `SUPER_ADMIN` and `HQ_MANAGER`.
+
+### Feature Flag: Configurable Cash Sales (`enableCashSales`)
+- When `enableCashSales = "true"`, the platform activates cash sale registration without forcing artificial installment generation.
+- When `enableCashSales = "false"`, sales creation requires valid down payment and installment duration terms.
 
 ---
 
-## 💵 Sales Lifecycle: Installment vs. Cash Sales
+## 💳 The Sales Lifecycle: Installments vs. Cash Contracts
 
-The system distinguishes between traditional Murabaha installment schedules and immediate cash contracts:
-
+```mermaid
+stateDiagram-v2
+    [*] --> DraftContract
+    
+    state "Validation & Branch Guard" as Guard
+    DraftContract --> Guard : Submit Sale Payload
+    
+    state "Sale Type Branching" as Branching
+    Guard --> Branching : Passed Validations
+    
+    state "Installment Sale Flow" as InstFlow {
+        CalculateTerms --> GenerateInstallments
+        GenerateInstallments --> RecordDownPayment
+        RecordDownPayment --> StatusActive
+    }
+    
+    state "Cash Sale Flow" as CashFlow {
+        VerifyCashFlag --> FullPaymentRecord
+        FullPaymentRecord --> StatusCompleted
+    }
+    
+    Branching --> InstFlow : saleType = 'INSTALLMENT'
+    Branching --> CashFlow : saleType = 'CASH' (if enabled)
+    
+    StatusActive --> [*] : Installments Paid in Full
+    StatusCompleted --> [*] : Immediate Completion
 ```
-                  ┌───────────────────────────────┐
-                  │      POST /api/sales          │
-                  └───────────────┬───────────────┘
-                                  │
-                   Is saleType === 'CASH'?
-                                 / \
-                         Yes    /   \   No (INSTALLMENT)
-                               ▼     ▼
-  ┌────────────────────────────────┐ ┌────────────────────────────────┐
-  │ Verify enableCashSales setting │ │ Calculate Monthly Installments │
-  │ totalPrice = downPayment       │ │ totalPrice = downPayment +     │
-  │ remainingAmount = 0            │ │              remainingBalance  │
-  │ status = 'COMPLETED'           │ │ status = 'ACTIVE'              │
-  │ Zero Installment Rows          │ │ N Installment Rows Generated   │
-  │ 1 Treasury Payment Registered  │ │ Initial Down Payment Receipt   │
-  └────────────────────────────────┘ └────────────────────────────────┘
-```
-
-1. **Installment Sales (`INSTALLMENT`)**:
-   - Requires upfront down payment (if any) and a set installment count (months).
-   - Generates individual `Installment` records with sequential due dates and tracking statuses (`UNPAID`, `PARTIALLY_PAID`, `PAID`).
-2. **Cash Sales (`CASH`)**:
-   - `totalPrice` must equal the upfront payment.
-   - Contract is created in status `COMPLETED` with `remainingAmount = 0`.
-   - Generates zero installment schedule rows.
-   - Registers a single payment entry in the `Payment` ledger linked to the branch treasury.
-   - Included in specialized Cash Sales reports and month-end accounting reconciliation.
 
 ---
 
-## 📥 Legacy Excel Import & Data Normalization Pipeline
+## 📊 Legacy Excel Ingestion Pipeline (Apache POI)
 
-To onboard historical Excel sheets cleanly into relational storage, the `POST /api/import/excel` engine executes a multi-stage validation and normalization pipeline:
+The spreadsheet ingestion subsystem processes high-volume legacy customer and contract records with zero data corruption:
 
-1. **Structural & Header Validation**: Validates existence of expected bilingual column mappings (e.g. `كود العميل`, `السيريال`, `إجمالي قيمة العقد`).
-2. **Strict Date Parsing**:
-   - Handles Excel serial timestamps (e.g., `44123`), ISO strings (`YYYY-MM-DD`), and Arabic/standard date formats (`DD/MM/YYYY`).
+1. **Header Normalization & Arabic Support**:
+   - Detects standard and dialectal Arabic column headers (`اسم العميل`, `رقم الماكينة`, `اجمالي العقد`, `المسدد`, etc.).
+2. **Date Parser Engine**:
+   - Handles mixed format strings (`YYYY-MM-DD`, `DD/MM/YYYY`) and native Excel serial dates.
    - Bounds-checked strictly between **2000-01-01** and **2050-12-31** to prevent corrupt or overflow dates.
 3. **Financial Sanity & Rounding Tolerance**:
-   - Guards against negative numbers and division by zero.
+   - Guards against negative numbers and division by zero using `BigDecimal`.
    - Implements a configurable **5.0 EGP tolerance threshold** to smoothly accommodate historical penny rounding discrepancies.
 4. **Collision-Safe Receipt Generation**:
    - Generates unique deterministic receipt indices:
@@ -129,19 +130,21 @@ To onboard historical Excel sheets cleanly into relational storage, the `POST /a
 5. **Atomic FIFO Settlement**:
    - Distributes cumulative paid amounts (`المسدد`) across generated installments in chronological order, automatically tagging fully paid vs. partially paid debts.
 
-## 🔄 The Dual-Database Strategy: PostgreSQL & Oracle
+---
 
-Enterprise organizations often mandate Oracle Database, while fast-paced engineering teams prefer PostgreSQL for local workflows, staging, and automated testing. Murabha Cloud embraces both without compromises:
+## 🔄 The Multi-Database Strategy: H2, PostgreSQL & Oracle
 
-### 1. Common Entity Definition via TypeORM
-All models are declared with ANSI SQL compatibility:
-- Portable column definitions (`varchar`, `decimal`, `timestamp with time zone`).
-- Precision-safe currency handling using explicit decimal transformers, preventing JavaScript IEEE 754 floating-point rounding errors.
+Enterprise organizations often mandate Oracle Database, while fast-paced engineering teams prefer PostgreSQL or embedded H2 for local workflows and CI testing. Murabha Cloud embraces all three without compromises:
 
-### 2. Pure JavaScript Thin Mode for Oracle
-Older Oracle Node.js stacks required platform-dependent C binaries (Oracle Instant Client). Murabha Cloud uses `node-oracledb 6+` in **Thin Mode**:
-- Pure JavaScript network driver connecting directly over TCP/IP.
-- Zero local native dependencies needed on Windows or Linux containers.
+### 1. Unified Entity Layer via Spring Data JPA & Hibernate 6
+All models are declared with ANSI SQL and JPA annotations:
+- Portable column definitions (`UUID`, `VARCHAR`, `NUMERIC(12,2)`, `TIMESTAMP WITH TIME ZONE`).
+- Precision-safe currency handling using `java.math.BigDecimal`, preventing IEEE 754 floating-point rounding errors.
+
+### 2. High-Performance JDBC Drivers
+- **H2**: Zero-setup in-memory database with PostgreSQL dialect compatibility for lightning-fast unit tests and offline development.
+- **PostgreSQL**: Production-grade cloud database driver (`org.postgresql:postgresql`).
+- **Oracle Database**: Official Oracle JDBC driver (`com.oracle.database.jdbc:ojdbc11`) supporting Thin Mode directly over TCP/IP without requiring native C client libraries.
 
 ### 3. Automated In-App Migration Architecture
 The built-in **Oracle Migration Wizard** executes an automated 4-step migration:
@@ -154,9 +157,9 @@ The built-in **Oracle Migration Wizard** executes an automated 4-step migration:
 
 ## 🔐 Session Management & Auditing
 
-- **Access Tokens**: Short-lived (15 minutes) signed with HMAC-SHA256. Carried in the `Authorization: Bearer <token>` header.
+- **Access Tokens**: Short-lived (15 minutes) signed with HMAC-SHA256 via JJWT. Carried in the `Authorization: Bearer <token>` header.
 - **Refresh Tokens**: Long-lived (7 days) stored exclusively in `HttpOnly, SameSite=Strict, Secure` cookies to mitigate XSS-based token theft.
-- **Audit Logging**: Every privileged or state-changing action is captured asynchronously into the `AuditLog` table, recording:
+- **Audit Logging**: Every privileged or state-changing action is captured into the `AuditLog` table, recording:
   - Timestamp
   - User ID and username
   - Action identifier (`USER_SUSPEND`, `BRANCH_CREATE`, `DB_RESET`, etc.)
