@@ -1,6 +1,7 @@
 package com.murabha.cloud.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -24,6 +25,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Payment {
 
     @Id
@@ -59,6 +61,7 @@ public class Payment {
     @Column(name = "branch_id")
     private UUID branchId;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", insertable = false, updatable = false)
     private Branch branch;
@@ -66,6 +69,7 @@ public class Payment {
     @Column(name = "created_by_user_id")
     private UUID createdByUserId;
 
+    @JsonIgnoreProperties({"payment", "sale", "hibernateLazyInitializer", "handler"})
     @Builder.Default
     @OneToMany(mappedBy = "payment", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<Installment> installments = new ArrayList<>();

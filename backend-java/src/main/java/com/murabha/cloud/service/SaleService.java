@@ -42,8 +42,18 @@ public class SaleService {
 
     @Transactional(readOnly = true)
     public MachineSale getById(UUID id) {
-        return saleRepository.findById(id)
+        MachineSale sale = saleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("عقد البيع غير موجود"));
+        if (sale.getCustomer() != null) {
+            sale.getCustomer().getName();
+        }
+        if (sale.getInstallments() != null) {
+            sale.getInstallments().size();
+        }
+        if (sale.getPayments() != null) {
+            sale.getPayments().size();
+        }
+        return sale;
     }
 
     @Transactional(readOnly = true)

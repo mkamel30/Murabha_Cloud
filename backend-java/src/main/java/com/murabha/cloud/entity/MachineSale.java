@@ -1,5 +1,6 @@
 package com.murabha.cloud.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -26,6 +27,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class MachineSale {
 
     @Id
@@ -38,6 +40,7 @@ public class MachineSale {
     @Column(name = "customer_id", nullable = false)
     private UUID customerId;
 
+    @JsonIgnoreProperties({"sales", "followUps", "hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", insertable = false, updatable = false)
     private Customer customer;
@@ -93,6 +96,7 @@ public class MachineSale {
     @Column(name = "branch_id")
     private UUID branchId;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", insertable = false, updatable = false)
     private Branch branch;
@@ -100,11 +104,13 @@ public class MachineSale {
     @Column(name = "created_by_user_id")
     private UUID createdByUserId;
 
+    @JsonIgnoreProperties({"sale", "hibernateLazyInitializer", "handler"})
     @Builder.Default
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("installmentNo ASC")
     private List<Installment> installments = new ArrayList<>();
 
+    @JsonIgnoreProperties({"sale", "hibernateLazyInitializer", "handler"})
     @Builder.Default
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = false)
     @OrderBy("paidAt ASC")

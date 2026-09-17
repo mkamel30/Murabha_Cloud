@@ -35,6 +35,7 @@ public class InstallmentRequest {
     @Column(name = "customer_id", nullable = false)
     private UUID customerId;
 
+    @JsonIgnoreProperties({"sales", "followUps", "hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "customer_id", insertable = false, updatable = false)
     private Customer customer;
@@ -81,6 +82,7 @@ public class InstallmentRequest {
     @Column(name = "branch_id")
     private UUID branchId;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "branch_id", insertable = false, updatable = false)
     private Branch branch;

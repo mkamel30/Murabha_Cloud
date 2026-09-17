@@ -30,8 +30,15 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public Customer getById(UUID id) {
-        return customerRepository.findById(id)
+        Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("العميل غير موجود"));
+        if (customer.getSales() != null) {
+            customer.getSales().size();
+        }
+        if (customer.getFollowUps() != null) {
+            customer.getFollowUps().size();
+        }
+        return customer;
     }
 
     @Transactional

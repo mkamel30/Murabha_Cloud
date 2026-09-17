@@ -58,16 +58,17 @@ public class Customer {
     @Column(name = "branch_id")
     private UUID branchId;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", insertable = false, updatable = false)
     private Branch branch;
 
-    @JsonIgnore
+    @JsonIgnoreProperties({"customer", "hibernateLazyInitializer", "handler"})
     @Builder.Default
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = false)
     private List<MachineSale> sales = new ArrayList<>();
 
-    @JsonIgnore
+    @JsonIgnoreProperties({"customer", "hibernateLazyInitializer", "handler"})
     @Builder.Default
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FollowUp> followUps = new ArrayList<>();

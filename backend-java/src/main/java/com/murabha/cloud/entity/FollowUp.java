@@ -1,5 +1,6 @@
 package com.murabha.cloud.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -21,6 +22,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class FollowUp {
 
     @Id
@@ -30,6 +32,7 @@ public class FollowUp {
     @Column(name = "customer_id", nullable = false)
     private UUID customerId;
 
+    @JsonIgnoreProperties({"followUps", "sales", "hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", insertable = false, updatable = false)
     private Customer customer;
@@ -54,6 +57,7 @@ public class FollowUp {
     @Column(name = "branch_id")
     private UUID branchId;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", insertable = false, updatable = false)
     private Branch branch;
