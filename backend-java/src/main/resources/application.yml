@@ -1,0 +1,48 @@
+﻿spring:
+  application:
+    name: murabha-cloud-backend
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 15MB
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+server:
+  port: 3008 # Default port running alongside Node (3007)
+  servlet:
+    context-path: /
+
+app:
+  jwt:
+    secret: 4c3e2b1a5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a
+    access-token-expiration-ms: 900000 # 15 minutes
+    refresh-token-expiration-ms: 604800000 # 7 days
+    cookie-name: refreshToken
+  cors:
+    allowed-origins:
+      - "http://localhost:2436"
+      - "http://localhost:3000"
+      - "http://localhost:3007"
+      - "http://localhost:3008"
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+  mfa:
+    master-secret: NVRW643UMF2HK3DM
+  rate-limit:
+    login-capacity: 30
+    login-duration-minutes: 15
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

@@ -8,25 +8,25 @@ This document provides a comprehensive, module-by-module checklist for migrating
 
 ### 0.1 Spring Boot Initialization
 
-- [ ] **Generate project via Spring Initializr**
-  - **Description**: Bootstrap the project using Java 21, Maven, and Spring Boot 3.3.x.
+- [x] **Generate project via Spring Initializr**
+  - **Description**: Bootstrap the project using Java 17/21, Maven, and Spring Boot 3.3.x.
   - **Dependencies**: None
-  - **Acceptance Criteria**: Base project compiles successfully using `mvn clean install`.
+  - **Acceptance Criteria**: Base project compiles successfully using `mvn clean install` / `./mvnw compile`.
   - **Estimated Effort**: S
 
-- [ ] **Add required dependencies**
+- [x] **Add required dependencies**
   - **Description**: Include dependencies in `pom.xml`: `spring-boot-starter-web`, `spring-boot-starter-data-jpa`, `spring-boot-starter-security`, `spring-boot-starter-validation`, `spring-boot-starter-actuator`, `flyway-core`, `h2`, `postgresql`, `ojdbc11`, `jjwt`, `bcrypt`, `mapstruct`, `apache-poi`, `thymeleaf`, `bucket4j`, `springdoc-openapi`.
   - **Dependencies**: Generate project via Spring Initializr
   - **Acceptance Criteria**: All dependencies are downloaded and project compiles without errors.
   - **Estimated Effort**: S
 
-- [ ] **Configure multi-profile application.yml**
+- [x] **Configure multi-profile application.yml**
   - **Description**: Setup configuration files for `dev` (H2), `staging` (PostgreSQL), and `prod` (Oracle) environments.
   - **Dependencies**: Add required dependencies
   - **Acceptance Criteria**: Application can start successfully using any of the three profiles.
   - **Estimated Effort**: M
 
-- [ ] **Setup project package structure**
+- [x] **Setup project package structure**
   - **Description**: Create the base folder architecture (`com.murabha.cloud.*`): `config`, `controller`, `dto`, `entity`, `repository`, `service`, `security`, `middleware`, `exception`, `util`, `migration`.
   - **Dependencies**: Generate project via Spring Initializr
   - **Acceptance Criteria**: Directory structure exists and follows Spring Boot best practices.
@@ -34,19 +34,19 @@ This document provides a comprehensive, module-by-module checklist for migrating
 
 ### 0.2 Docker & CI
 
-- [ ] **Create backend-java/Dockerfile**
-  - **Description**: Write a multi-stage Dockerfile (Maven build → JRE 21 runtime).
+- [x] **Create backend-java/Dockerfile**
+  - **Description**: Write a multi-stage Dockerfile (Maven build → JRE 17 runtime).
   - **Dependencies**: Spring Boot Initialization
   - **Acceptance Criteria**: `docker build` produces a working, optimized image.
   - **Estimated Effort**: S
 
-- [ ] **Update docker-compose.yml**
+- [x] **Update docker-compose.yml**
   - **Description**: Add the `backend-java` service alongside existing services.
   - **Dependencies**: Create backend-java/Dockerfile
   - **Acceptance Criteria**: `docker-compose up` successfully starts the Spring Boot application and database.
   - **Estimated Effort**: S
 
-- [ ] **Create GitHub Actions workflow**
+- [x] **Create GitHub Actions workflow**
   - **Description**: Setup CI pipeline for Java build, tests, and linting.
   - **Dependencies**: Spring Boot Initialization
   - **Acceptance Criteria**: PRs trigger the workflow, and it passes or fails correctly based on tests.

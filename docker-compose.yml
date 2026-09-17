@@ -1,4 +1,4 @@
-﻿version: '3.8'
+version: '3.8'
 
 services:
   # PostgreSQL Primary Database
@@ -45,6 +45,28 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
     ports:
       - "3000:3000"
+
+  # Java Spring Boot Backend Service (Parallel Migration)
+  backend-java:
+    build:
+      context: ./backend-java
+      dockerfile: Dockerfile
+    container_name: murabha_backend_java
+    restart: unless-stopped
+    profiles: ["migration", "all"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-murabha}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-Murabha@Cloud2026!}
+      SERVER_PORT: 3008
+    ports:
+      - "3008:3008"
 
   # Frontend Web UI (Nginx SPA Reverse Proxy)
   frontend:
