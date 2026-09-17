@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>إيصال سداد نقدية</title>
+    <style>
+        body { font-family: 'Cairo', 'Tahoma', sans-serif; padding: 20px; text-align: center; }
+        .receipt-card { border: 2px solid #333; border-radius: 8px; max-width: 450px; margin: 0 auto; padding: 20px; }
+        .header { border-bottom: 1px solid #ccc; margin-bottom: 15px; padding-bottom: 10px; }
+        .row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="receipt-card">
+        <div class="header">
+            <h2>مرابحة كلاود — إيصال استلام</h2>
+        </div>
+        <div class="row">
+            <span>رقم الإيصال:</span>
+            <strong th:text="${receiptNumber}">R-0001</strong>
+        </div>
+        <div class="row">
+            <span>المبلغ المدفوع:</span>
+            <strong th:text="${amount + ' ج.م'}">1000.00 ج.م</strong>
+        </div>
+        <div class="row">
+            <span>تاريخ السداد:</span>
+            <span th:text="${paidAt}">2026-09-17</span>
+        </div>
+    </div>
+</body>
+</html>

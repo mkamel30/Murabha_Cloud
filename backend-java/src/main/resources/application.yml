@@ -1,4 +1,4 @@
-﻿spring:
+spring:
   application:
     name: murabha-cloud-backend
   profiles:
@@ -11,6 +11,10 @@
     serialization:
       write-dates-as-timestamps: false
     default-property-inclusion: non_null
+  jpa:
+    open-in-view: false
+  thymeleaf:
+    check-template-location: false
 
 server:
   port: 3008 # Default port running alongside Node (3007)
