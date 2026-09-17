@@ -20,6 +20,7 @@ import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';
 import ImportPage from '@/pages/Import';
 import Analytics from '@/pages/Analytics';
+import InstallmentRequests from '@/pages/InstallmentRequests';
 import { ar } from '@/i18n/ar';
 import { PrimaryButton } from '@/lib/Actions';
 import { useNavigate } from 'react-router-dom';
@@ -88,6 +89,7 @@ export default function App() {
               {/* Operational Routes */}
               <Route path="customers" element={<Customers />} />
               <Route path="customers/:id" element={<CustomerDetail />} />
+              <Route path="installment-requests" element={<InstallmentRequests />} />
               <Route path="sales" element={<Sales />} />
               <Route path="sales/:id" element={<SaleDetail />} />
               <Route path="installments" element={<Installments />} />

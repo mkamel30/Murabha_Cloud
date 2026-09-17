@@ -76,6 +76,12 @@ export const adminUsersApi = {
   resetPassword: (id: string, newPassword: string) => api.post(`/admin/users/${id}/reset-password`, { newPassword }).then((r) => r.data),
   toggleActive: (id: string) => api.post(`/admin/users/${id}/toggle-active`).then((r) => r.data),
   delete: (id: string) => api.delete(`/admin/users/${id}`).then((r) => r.data),
+  downloadTemplate: () => api.get('/admin/users/template', { responseType: 'blob' }).then((r) => r.data),
+  bulkImport: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/admin/users/bulk-import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+  },
 };
 
 // ---- Branches Management API ----
@@ -85,6 +91,12 @@ export const branchesApi = {
   update: (id: string, data: any) => api.put(`/branches/${id}`, data).then((r) => r.data),
   toggleActive: (id: string) => api.post(`/branches/${id}/toggle-active`).then((r) => r.data),
   delete: (id: string) => api.delete(`/branches/${id}`).then((r) => r.data),
+  downloadTemplate: () => api.get('/branches/template', { responseType: 'blob' }).then((r) => r.data),
+  bulkImport: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/branches/bulk-import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+  },
 };
 
 
@@ -104,6 +116,29 @@ export const hqDashboardApi = {
 export const settingsApi = {
   getAll: () => api.get<Record<string, any>>('/settings').then((r) => r.data),
   update: (key: string, value: any) => api.put(`/settings/${key}`, { value }).then((r) => r.data),
+  getMailSettings: () => api.get('/settings/mail').then((r) => r.data),
+  saveMailSettings: (data: any) => api.put('/settings/mail', data).then((r) => r.data),
+  testMail: (data: any) => api.post('/settings/mail/test', data).then((r) => r.data),
+  getWorkflowSettings: () => api.get('/settings/workflow').then((r) => r.data),
+  saveWorkflowSettings: (data: any) => api.put('/settings/workflow', data).then((r) => r.data),
+};
+
+// ---- Installment Requests (Workflow) API ----
+export const installmentRequestsApi = {
+  getAll: (status?: string) => api.get('/installment-requests', { params: { status } }).then((r) => r.data),
+  getById: (id: string) => api.get(`/installment-requests/${id}`).then((r) => r.data),
+  create: (data: any) => api.post('/installment-requests', data).then((r) => r.data),
+  approve: (id: string, notes?: string) => api.post(`/installment-requests/${id}/approve`, { notes }).then((r) => r.data),
+  reject: (id: string, reason: string) => api.post(`/installment-requests/${id}/reject`, { reason }).then((r) => r.data),
+  convertToSale: (id: string, downPaymentReceipt: string) => api.post(`/installment-requests/${id}/convert-to-sale`, { downPaymentReceipt }).then((r) => r.data),
+};
+
+// ---- In-App Notifications API ----
+export const notificationsApi = {
+  getAll: () => api.get('/notifications').then((r) => r.data),
+  getUnreadCount: () => api.get<{ unreadCount: number }>('/notifications/unread-count').then((r) => r.data),
+  markAllRead: () => api.post('/notifications/mark-all-read').then((r) => r.data),
+  markAsRead: (id: string) => api.put(`/notifications/${id}/read`).then((r) => r.data),
 };
 
 // ---- Core Operational APIs ----

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PageHeader } from '@/lib/Actions';
-import { Building2, Users, BookOpen, ChevronDown, ChevronUp, Database, SlidersHorizontal, Banknote, CreditCard, Plus, Trash2 } from 'lucide-react';
+import { Building2, Users, BookOpen, ChevronDown, ChevronUp, Database, SlidersHorizontal, Banknote, CreditCard, Plus, Trash2, Mail, GitMerge, Send, RefreshCw, Save } from 'lucide-react';
 import OracleMigrationWizard from '@/components/OracleMigrationWizard';
 import BranchesManagement from './BranchesManagement';
 import UsersManagement from './UsersManagement';
@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { settingsApi } from '@/api/client';
 import { useToast } from '@/lib/toast';
 
-type SettingsTab = 'general' | 'branches' | 'users' | 'oracle' | 'guide';
+type SettingsTab = 'general' | 'branches' | 'users' | 'email' | 'workflow' | 'oracle' | 'guide';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -25,6 +25,46 @@ export default function SettingsPage() {
   const [savingCashSetting, setSavingCashSetting] = useState<boolean>(false);
   const [savingPlaces, setSavingPlaces] = useState<boolean>(false);
 
+  // Email Settings State
+  const [mailSettings, setMailSettings] = useState({
+    provider: 'GMAIL',
+    host: 'smtp.gmail.com',
+    port: 587,
+    username: '',
+    password: '',
+    fromEmail: '',
+    fromName: 'نظام المرابحة السحابية',
+    useTls: true,
+    useSsl: false,
+    testRecipient: '',
+    templateSubject: 'طلب تقسيط جديد بحاجة للاعتماد - {{customerName}}',
+    templateBody: `السلام عليكم ورحمة الله وبركاته،<br/><br/>
+تم تسجيل طلب تقسيط جديد في النظام بالبيانات التالية:<br/>
+<ul>
+  <li><b>اسم العميل:</b> {{customerName}}</li>
+  <li><b>الفرع:</b> {{branchName}}</li>
+  <li><b>إجمالي المبلغ:</b> {{amount}} جنيه</li>
+  <li><b>عدد الأشهر:</b> {{months}} شهر</li>
+  <li><b>مُقدم الطلب:</b> {{creatorName}}</li>
+</ul>
+يرجى التكرم بالدخول على النظام لمراجعة الطلب واتخاذ الإجراء اللازم.<br/><br/>
+<a href="{{actionUrl}}" style="display:inline-block;padding:10px 20px;background-color:#0A2472;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">الانتقال إلى طلبات التقسيط</a>
+<br/><br/>تحياتنا،<br/>إدارة نظام المرابحة السحابية`,
+  });
+  const [loadingMail, setLoadingMail] = useState(false);
+  const [savingMail, setSavingMail] = useState(false);
+  const [testingMail, setTestingMail] = useState(false);
+
+  // Workflow Settings State
+  const [workflowSettings, setWorkflowSettings] = useState({
+    mode: 'TWO_LEVEL',
+    thresholdAmount: 15000,
+    requireSupervisor: true,
+    requireBranchManager: true,
+  });
+  const [loadingWorkflow, setLoadingWorkflow] = useState(false);
+  const [savingWorkflow, setSavingWorkflow] = useState(false);
+
   useEffect(() => {
     if (canManageUsers) {
       settingsApi.getAll()
@@ -40,8 +80,96 @@ export default function SettingsPage() {
           console.error('Failed to load settings:', err);
         })
         .finally(() => setLoadingSettings(false));
+
+      // Fetch Mail Settings
+      setLoadingMail(true);
+      settingsApi.getMailSettings()
+        .then((data) => {
+          if (data && data.host) {
+            setMailSettings((prev) => ({ ...prev, ...data }));
+          }
+        })
+        .catch((err) => console.error('Failed to load mail settings:', err))
+        .finally(() => setLoadingMail(false));
+
+      // Fetch Workflow Settings
+      setLoadingWorkflow(true);
+      settingsApi.getWorkflowSettings()
+        .then((data) => {
+          if (data && data.mode) {
+            setWorkflowSettings((prev) => ({ ...prev, ...data }));
+          }
+        })
+        .catch((err) => console.error('Failed to load workflow settings:', err))
+        .finally(() => setLoadingWorkflow(false));
     }
   }, [canManageUsers]);
+
+  const handleProviderChange = (provider: string) => {
+    if (provider === 'GMAIL') {
+      setMailSettings(prev => ({
+        ...prev,
+        provider,
+        host: 'smtp.gmail.com',
+        port: 587,
+        useTls: true,
+        useSsl: false,
+      }));
+    } else if (provider === 'OFFICE365') {
+      setMailSettings(prev => ({
+        ...prev,
+        provider,
+        host: 'smtp.office365.com',
+        port: 587,
+        useTls: true,
+        useSsl: false,
+      }));
+    } else {
+      setMailSettings(prev => ({ ...prev, provider }));
+    }
+  };
+
+  const handleSaveMailSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingMail(true);
+    try {
+      await settingsApi.saveMailSettings(mailSettings);
+      showToast('تم حفظ إعدادات خادم البريد الإلكتروني بنجاح', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || err.response?.data?.error || 'فشل حفظ إعدادات البريد', 'error');
+    } finally {
+      setSavingMail(false);
+    }
+  };
+
+  const handleTestMail = async () => {
+    if (!mailSettings.testRecipient) {
+      showToast('يرجى كتابة بريد إلكتروني لاستقبال الرسالة التجريبية', 'error');
+      return;
+    }
+    setTestingMail(true);
+    try {
+      const res = await settingsApi.testMail(mailSettings);
+      showToast(res.message || 'تم إرسال البريد التجريبي بنجاح!', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || err.response?.data?.error || 'فشل إرسال البريد التجريبي. تحقق من بيانات الخادم أو كلمة المرور', 'error');
+    } finally {
+      setTestingMail(false);
+    }
+  };
+
+  const handleSaveWorkflowSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingWorkflow(true);
+    try {
+      await settingsApi.saveWorkflowSettings(workflowSettings);
+      showToast('تم حفظ إعدادات دورة الموافقات والاعتمادات بنجاح', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || err.response?.data?.error || 'فشل حفظ إعدادات دورة الاعتماد', 'error');
+    } finally {
+      setSavingWorkflow(false);
+    }
+  };
 
   const handleToggleCashSales = async () => {
     const nextVal = !enableCashSales;
@@ -152,6 +280,36 @@ export default function SettingsPage() {
           >
             <Users className="w-4 h-4" />
             <span>المستخدمين والصلاحيات</span>
+          </button>
+        )}
+
+        {canManageUsers && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('workflow')}
+            className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+              activeTab === 'workflow'
+                ? 'bg-[#0A2472] text-white shadow-lg shadow-[#0A2472]/20 scale-[1.02]'
+                : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
+            }`}
+          >
+            <GitMerge className="w-4 h-4" />
+            <span>دورة الموافقات والاعتماد</span>
+          </button>
+        )}
+
+        {canManageUsers && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('email')}
+            className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
+              activeTab === 'email'
+                ? 'bg-[#0A2472] text-white shadow-lg shadow-[#0A2472]/20 scale-[1.02]'
+                : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            <span>خادم البريد والإشعارات</span>
           </button>
         )}
 
@@ -507,6 +665,385 @@ export default function SettingsPage() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Workflow & Approval Settings */}
+      {activeTab === 'workflow' && canManageUsers && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                <GitMerge className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">إعدادات مسار الموافقات والاعتمادات للتقسيط</h2>
+                <p className="text-xs text-slate-500">تحديد شروط ومستويات موافقة مشرفي ومديري الفروع على طلبات التقسيط</p>
+              </div>
+            </div>
+
+            {loadingWorkflow ? (
+              <div className="p-8 text-center text-xs text-slate-400">جاري تحميل إعدادات دورة الاعتمادات...</div>
+            ) : (
+            <form onSubmit={handleSaveWorkflowSettings} className="space-y-6">
+              {/* Approval Mode Cards */}
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-slate-700">نمط دورة الاعتماد (Approval Mode):</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Mode 1: Two Level */}
+                  <div
+                    onClick={() => setWorkflowSettings(prev => ({ ...prev, mode: 'TWO_LEVEL' }))}
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      workflowSettings.mode === 'TWO_LEVEL'
+                        ? 'border-[#0A2472] bg-blue-50/50 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-sm text-slate-800">موافقة ثنائية (Two-Level)</span>
+                      <input
+                        type="radio"
+                        name="workflowMode"
+                        checked={workflowSettings.mode === 'TWO_LEVEL'}
+                        onChange={() => {}}
+                        className="text-[#0A2472]"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      يمر الطلب أولاً على <strong>مشرف خدمة العملاء</strong> للاعتماد المبدئي، ثم ينتقل إلى <strong>مدير الفرع</strong> للاعتماد النهائي.
+                    </p>
+                  </div>
+
+                  {/* Mode 2: Supervisor Only */}
+                  <div
+                    onClick={() => setWorkflowSettings(prev => ({ ...prev, mode: 'ONE_LEVEL' }))}
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      workflowSettings.mode === 'ONE_LEVEL'
+                        ? 'border-[#0A2472] bg-blue-50/50 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-sm text-slate-800">مستوى واحد (Supervisor Only)</span>
+                      <input
+                        type="radio"
+                        name="workflowMode"
+                        checked={workflowSettings.mode === 'ONE_LEVEL'}
+                        onChange={() => {}}
+                        className="text-[#0A2472]"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      بمجرد اعتماد <strong>مشرف خدمة العملاء</strong>، يصبح الطلب معتمداً ومتاحاً فوراً لتسجيل إيصال المقدم وإصدار العقد.
+                    </p>
+                  </div>
+
+                  {/* Mode 3: Threshold Based */}
+                  <div
+                    onClick={() => setWorkflowSettings(prev => ({ ...prev, mode: 'THRESHOLD' }))}
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      workflowSettings.mode === 'THRESHOLD'
+                        ? 'border-[#0A2472] bg-blue-50/50 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-sm text-slate-800">مشروط بالسقف المالي (Threshold)</span>
+                      <input
+                        type="radio"
+                        name="workflowMode"
+                        checked={workflowSettings.mode === 'THRESHOLD'}
+                        onChange={() => {}}
+                        className="text-[#0A2472]"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      الطلبات الأقل من السقف المالي يكتفى فيها باعتماد المشرف، بينما المبالغ الكبيرة تتطلب تلقائياً تصعيداً لمدير الفرع.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Threshold Amount Field (Conditional) */}
+              {workflowSettings.mode === 'THRESHOLD' && (
+                <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2">
+                  <label className="block text-xs font-bold text-amber-900">
+                    حد السقف المالي لتصعيد الطلب للمدير (جنيه مصري):
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="1000"
+                      step="500"
+                      value={workflowSettings.thresholdAmount}
+                      onChange={(e) => setWorkflowSettings(prev => ({ ...prev, thresholdAmount: Number(e.target.value) }))}
+                      className="w-48 px-3 py-2 border border-amber-300 rounded-lg text-sm font-bold bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                    <span className="text-xs text-amber-700">
+                      أي طلب بقيمة إجمالية تفوق هذا المبلغ سيتطلب وجوباً موافقة مدير الفرع بعد اعتماد المشرف.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Toggles */}
+              <div className="border-t border-slate-100 pt-4 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700">خيارات متقدمة:</h4>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="requireSupervisor"
+                    checked={workflowSettings.requireSupervisor}
+                    onChange={(e) => setWorkflowSettings(prev => ({ ...prev, requireSupervisor: e.target.checked }))}
+                    className="w-4 h-4 text-[#0A2472] rounded focus:ring-[#0A2472]"
+                  />
+                  <label htmlFor="requireSupervisor" className="text-xs font-medium text-slate-700 cursor-pointer">
+                    تفعيل وجوب مراجعة مشرف خدمة العملاء لجميع طلبات الفرع (موصى به دائماً)
+                  </label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="requireBranchManager"
+                    checked={workflowSettings.requireBranchManager}
+                    onChange={(e) => setWorkflowSettings(prev => ({ ...prev, requireBranchManager: e.target.checked }))}
+                    className="w-4 h-4 text-[#0A2472] rounded focus:ring-[#0A2472]"
+                  />
+                  <label htmlFor="requireBranchManager" className="text-xs font-medium text-slate-700 cursor-pointer">
+                    تمكين مدير الفرع من اعتماد الطلبات مباشرة أو مراجعتها
+                  </label>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex justify-end pt-4 border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={savingWorkflow}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0A2472] text-white text-sm font-bold hover:bg-blue-900 transition shadow-md shadow-[#0A2472]/20 disabled:opacity-50 cursor-pointer"
+                >
+                  {savingWorkflow ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>حفظ سياسة الاعتماد</span>
+                </button>
+              </div>
+            </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Email Server & Notification Settings */}
+      {activeTab === 'email' && canManageUsers && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0A2472] flex items-center justify-center">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">إعدادات خادم البريد (SMTP) ونماذج الإشعارات</h2>
+                <p className="text-xs text-slate-500">تهيئة إرسال الإيميلات الفورية للمشرفين والمديرين عند إنشاء طلبات تقسيط جديدة</p>
+              </div>
+            </div>
+
+            {loadingMail ? (
+              <div className="p-8 text-center text-xs text-slate-400">جاري تحميل إعدادات خادم البريد...</div>
+            ) : (
+            <>
+            {/* Provider Presets */}
+            <div className="mb-6 space-y-2">
+              <label className="block text-xs font-bold text-slate-700">مزود البريد الإلكتروني السريع:</label>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { id: 'GMAIL', label: 'Gmail / Google Workspace' },
+                  { id: 'OFFICE365', label: 'Microsoft 365 / Outlook' },
+                  { id: 'CUSTOM', label: 'خادم مخصص (Custom SMTP)' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleProviderChange(p.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                      mailSettings.provider === p.id
+                        ? 'bg-[#0A2472] text-white border-[#0A2472] shadow-sm'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveMailSettings} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">عنوان خادم البريد (Host):</label>
+                  <input
+                    type="text"
+                    required
+                    value={mailSettings.host}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, host: e.target.value }))}
+                    placeholder="e.g. smtp.gmail.com"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2472]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">منفذ الاتصال (Port):</label>
+                  <input
+                    type="number"
+                    required
+                    value={mailSettings.port}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, port: Number(e.target.value) }))}
+                    placeholder="587 أو 465"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2472]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">اسم المستخدم / البريد (Username):</label>
+                  <input
+                    type="text"
+                    value={mailSettings.username}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, username: e.target.value }))}
+                    placeholder="notifications@yourdomain.com"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2472]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">كلمة المرور / App Password:</label>
+                  <input
+                    type="password"
+                    value={mailSettings.password}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="••••••••••••"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2472]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">بريد المُرسل (From Email):</label>
+                  <input
+                    type="email"
+                    value={mailSettings.fromEmail}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, fromEmail: e.target.value }))}
+                    placeholder="noreply@murabhacloud.com"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2472]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">اسم المُرسل الظاهر (From Name):</label>
+                  <input
+                    type="text"
+                    value={mailSettings.fromName}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, fromName: e.target.value }))}
+                    placeholder="نظام المرابحة السحابية"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2472]"
+                  />
+                </div>
+              </div>
+
+              {/* TLS / SSL */}
+              <div className="flex items-center gap-6 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={mailSettings.useTls}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, useTls: e.target.checked }))}
+                    className="w-4 h-4 text-[#0A2472] rounded"
+                  />
+                  <span>تفعيل STARTTLS (موصى به للمنفذ 587)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={mailSettings.useSsl}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, useSsl: e.target.checked }))}
+                    className="w-4 h-4 text-[#0A2472] rounded"
+                  />
+                  <span>تفعيل SSL (موصى به للمنفذ 465)</span>
+                </label>
+              </div>
+
+              {/* Template Editor */}
+              <div className="border-t border-slate-200/80 pt-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">قالب رسالة التنبيه بالطلب الجديد (HTML Template)</h3>
+                    <p className="text-xs text-slate-500">صيغة الإيميل الذي يصل لمشرف ومدير الفرع فور تسجيل موظف خدمة العملاء لطلب جديد</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">عنوان الرسالة (Subject):</label>
+                  <input
+                    type="text"
+                    value={mailSettings.templateSubject}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, templateSubject: e.target.value }))}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2472]"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">نص الرسالة (يدعم كود HTML):</label>
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                      <span>المتغيرات المتاحة:</span>
+                      {['{{customerName}}', '{{branchName}}', '{{amount}}', '{{months}}', '{{creatorName}}', '{{actionUrl}}'].map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setMailSettings(prev => ({ ...prev, templateBody: prev.templateBody + ' ' + tag }))}
+                          className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-700 font-mono text-[10px] cursor-pointer"
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <textarea
+                    rows={6}
+                    dir="ltr"
+                    value={mailSettings.templateBody}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, templateBody: e.target.value }))}
+                    className="w-full p-3 font-mono text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2472]"
+                  />
+                </div>
+              </div>
+
+              {/* Save & Test Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
+                {/* Test Email Box */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <input
+                    type="email"
+                    placeholder="أدخل بريدك للتجربة"
+                    value={mailSettings.testRecipient}
+                    onChange={(e) => setMailSettings(prev => ({ ...prev, testRecipient: e.target.value }))}
+                    className="px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A2472] w-64"
+                  />
+                  <button
+                    type="button"
+                    disabled={testingMail}
+                    onClick={handleTestMail}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    {testingMail ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    <span>إرسال تجريبي</span>
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={savingMail}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0A2472] text-white text-sm font-bold hover:bg-blue-900 transition shadow-md shadow-[#0A2472]/20 disabled:opacity-50 cursor-pointer"
+                >
+                  {savingMail ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>حفظ إعدادات البريد والقالب</span>
+                </button>
+              </div>
+            </form>
+            </>
+            )}
           </div>
         </div>
       )}

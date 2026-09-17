@@ -1,7 +1,11 @@
 package com.murabha.cloud.controller;
 
+import com.murabha.cloud.dto.MailSettingsDto;
+import com.murabha.cloud.dto.WorkflowSettingsDto;
 import com.murabha.cloud.entity.SystemSetting;
 import com.murabha.cloud.repository.SystemSettingRepository;
+import com.murabha.cloud.service.DynamicMailService;
+import com.murabha.cloud.service.InstallmentRequestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,6 +22,42 @@ import java.util.Map;
 public class SettingsController {
 
     private final SystemSettingRepository settingRepository;
+    private final DynamicMailService mailService;
+    private final InstallmentRequestService installmentRequestService;
+
+    @GetMapping("/mail")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER')")
+    public ResponseEntity<MailSettingsDto> getMailSettings() {
+        return ResponseEntity.ok(mailService.getMailSettings());
+    }
+
+    @PutMapping("/mail")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER')")
+    public ResponseEntity<Map<String, Object>> saveMailSettings(@RequestBody MailSettingsDto dto) {
+        mailService.saveMailSettings(dto);
+        return ResponseEntity.ok(Map.of("message", "تم حفظ إعدادات البريد الإلكتروني بنجاح"));
+    }
+
+    @PostMapping("/mail/test")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER')")
+    public ResponseEntity<Map<String, Object>> testMail(@RequestBody MailSettingsDto dto) {
+        String recipient = dto.getTestRecipient() != null && !dto.getTestRecipient().isBlank()
+                ? dto.getTestRecipient() : dto.getUsername();
+        mailService.sendTestEmail(dto, recipient);
+        return ResponseEntity.ok(Map.of("message", "تم إرسال بريد الاختبار بنجاح إلى: " + recipient));
+    }
+
+    @GetMapping("/workflow")
+    public ResponseEntity<WorkflowSettingsDto> getWorkflowSettings() {
+        return ResponseEntity.ok(installmentRequestService.getWorkflowSettings());
+    }
+
+    @PutMapping("/workflow")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER')")
+    public ResponseEntity<Map<String, Object>> saveWorkflowSettings(@RequestBody WorkflowSettingsDto dto) {
+        installmentRequestService.saveWorkflowSettings(dto);
+        return ResponseEntity.ok(Map.of("message", "تم حفظ إعدادات مسارات الموافقة بنجاح"));
+    }
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAll() {

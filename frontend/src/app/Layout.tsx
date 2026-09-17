@@ -22,15 +22,22 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
+  FileCheck,
+  Bell,
+  Check,
 } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '../context/AuthContext';
+import { notificationsApi } from '@/api/client';
+import { useNavigate } from 'react-router-dom';
 
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'مدير عام',
   HQ_MANAGER: 'إدارة HQ',
   HQ_ACCOUNTANT: 'محاسب عام',
   BRANCH_MANAGER: 'مدير فرع',
+  BRANCH_SUPERVISOR: 'مشرف خدمة عملاء',
+  BRANCH_CSR: 'موظف خدمة عملاء',
   BRANCH_COLLECTOR: 'محصل فرع',
   BRANCH_DATA_ENTRY: 'مدخل بيانات',
 };
@@ -42,14 +49,84 @@ export default function Layout() {
   });
 
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, isHQ, operationalBranches, selectedBranchId, setSelectedBranchId, logout } = useAuth();
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const canManageUsers = isSuperAdmin || user?.role === 'HQ_MANAGER';
 
+  // Notifications state
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await notificationsApi.getUnreadCount();
+      setUnreadCount(res.unreadCount || 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      const data = await notificationsApi.getAll();
+      setNotifications(data || []);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchUnreadCount();
+    const timer = setInterval(() => {
+      fetchUnreadCount();
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleToggleNotifications = () => {
+    if (!isNotificationsOpen) {
+      loadNotifications();
+    }
+    setIsNotificationsOpen((prev) => !prev);
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationsApi.markAllRead();
+      setUnreadCount(0);
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleNotificationClick = async (notif: any) => {
+    if (!notif.isRead) {
+      try {
+        await notificationsApi.markAsRead(notif.id);
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
+        );
+      } catch {
+        // ignore
+      }
+    }
+    setIsNotificationsOpen(false);
+    if (notif.link) {
+      navigate(notif.link);
+    } else {
+      navigate('/installment-requests');
+    }
+  };
+
   // Automatically close mobile sidebar on navigation
   useEffect(() => {
     setSidebarOpen(false);
+    setIsNotificationsOpen(false);
   }, [location.pathname]);
 
   const toggleCollapsed = () => {
@@ -164,6 +241,7 @@ export default function Layout() {
                 {[
                   { path: '/dashboard', label: ar.nav.dashboard, icon: LayoutDashboard },
                   { path: '/customers', label: ar.nav.customers, icon: Users },
+                  { path: '/installment-requests', label: 'طلبات التقسيط', icon: FileCheck },
                   { path: '/sales', label: ar.nav.sales, icon: ShoppingCart },
                   { path: '/followups', label: ar.nav.followUps, icon: UserCheck },
                 ].map((item) => (
@@ -397,8 +475,83 @@ export default function Layout() {
             )}
           </div>
 
-          {/* User Status / Greeting */}
+          {/* User Status / Greeting & Notification Bell */}
           <div className="flex items-center gap-3 text-xs text-slate-500 shrink-0">
+            {/* Notification Bell Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={handleToggleNotifications}
+                className="relative p-2 rounded-xl text-slate-500 hover:text-[#0A2472] hover:bg-slate-100 transition cursor-pointer"
+                title="الإشعارات والتنبيهات"
+              >
+                <Bell size={19} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white rounded-full text-[10px] font-black flex items-center justify-center shadow-xs animate-pulse">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown Panel */}
+              {isNotificationsOpen && (
+                <div 
+                  className="absolute left-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden animate-scale-in"
+                  dir="rtl"
+                >
+                  <div className="p-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-800 text-xs">التنبيهات والإشعارات</span>
+                      {unreadCount > 0 && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                          {unreadCount} جديد
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllRead}
+                        className="text-[11px] font-bold text-[#0A2472] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Check size={12} />
+                        <span>تحديد الكل كمقروء</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 text-right">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-slate-400 text-xs font-medium">
+                        لا توجد تنبيهات أو إشعارات حالياً
+                      </div>
+                    ) : (
+                      notifications.map((notif) => (
+                        <div
+                          key={notif.id}
+                          onClick={() => handleNotificationClick(notif)}
+                          className={`p-3 hover:bg-slate-50 transition cursor-pointer flex items-start gap-3 ${
+                            !notif.isRead ? 'bg-blue-50/40' : ''
+                          }`}
+                        >
+                          <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${!notif.isRead ? 'bg-[#0A2472]' : 'bg-transparent'}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-bold text-slate-800 truncate">{notif.title}</div>
+                            <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-2 leading-relaxed">{notif.message}</p>
+                            <span className="text-[10px] text-slate-400 mt-1 block font-mono">
+                              {new Date(notif.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+
             <span className="hidden sm:inline">
               مرحباً، <strong className="text-slate-800">{user?.name}</strong>
             </span>

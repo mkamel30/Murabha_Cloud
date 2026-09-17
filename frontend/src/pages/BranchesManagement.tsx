@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { branchesApi } from '../api/client';
 import { useToast } from '../lib/toast';
 import { LoadingScreen } from '../lib/Spinner';
 import { Modal } from '../lib/Modal';
 import { PrimaryButton, SecondaryButton, PageHeader } from '../lib/Actions';
-import { Building2, Plus, Phone, MapPin, ToggleLeft, ToggleRight, Edit2, Trash2, Shield } from 'lucide-react';
-import { formatCurrency } from '../lib/utils';
+import { Building2, Plus, Phone, MapPin, ToggleLeft, ToggleRight, Edit2, Trash2, Shield, FileDown, Upload, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { formatCurrency, downloadBlob } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
 export default function BranchesManagement({ embedded = false }: { embedded?: boolean }) {
@@ -15,6 +15,14 @@ export default function BranchesManagement({ embedded = false }: { embedded?: bo
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingBranch, setEditingBranch] = useState<any>(null);
+
+  // Bulk Import State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
     code: '',
     name: '',
@@ -102,6 +110,37 @@ export default function BranchesManagement({ embedded = false }: { embedded?: bo
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await branchesApi.downloadTemplate();
+      downloadBlob(blob, 'murabha_branches_template.xlsx');
+      showToast('تم تحميل قالب الفروع بنجاح', 'success');
+    } catch (err) {
+      showToast('فشل تحميل قالب الفروع', 'error');
+    }
+  };
+
+  const handleExecuteImport = async () => {
+    if (!selectedFile) {
+      showToast('يرجى اختيار ملف Excel أولاً', 'error');
+      return;
+    }
+    setImporting(true);
+    try {
+      const res = await branchesApi.bulkImport(selectedFile);
+      setImportResult(res);
+      if (res.successCount > 0) {
+        showToast(`تم استيراد ${res.successCount} فرع بنجاح`, 'success');
+        await refreshBranches();
+        loadBranches();
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'فشل استيراد الفروع', 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) return <LoadingScreen message="جاري تحميل الفروع..." />;
 
   return (
@@ -118,10 +157,22 @@ export default function BranchesManagement({ embedded = false }: { embedded?: bo
             <p className="text-xs text-slate-500 mt-0.5">إضافة وتعديل فروع الشركة والتحكم في إغلاقها وتحديث بياناتها</p>
           </div>
         )}
-        <PrimaryButton onClick={handleOpenCreate} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          <span>إضافة فرع جديد</span>
-        </PrimaryButton>
+        <div className="flex items-center gap-2 flex-wrap">
+          <SecondaryButton onClick={handleDownloadTemplate} className="flex items-center gap-2 text-xs">
+            <FileDown className="w-4 h-4 text-[#0A2472]" />
+            <span>تحميل قالب Excel</span>
+          </SecondaryButton>
+
+          <SecondaryButton onClick={() => { setImportResult(null); setSelectedFile(null); setShowImportModal(true); }} className="flex items-center gap-2 text-xs">
+            <Upload className="w-4 h-4 text-emerald-600" />
+            <span>استيراد مجمع</span>
+          </SecondaryButton>
+
+          <PrimaryButton onClick={handleOpenCreate} className="flex items-center gap-2 text-xs">
+            <Plus className="w-4 h-4" />
+            <span>إضافة فرع جديد</span>
+          </PrimaryButton>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -292,6 +343,96 @@ export default function BranchesManagement({ embedded = false }: { embedded?: bo
             </PrimaryButton>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal: Bulk Import Branches */}
+      <Modal isOpen={showImportModal} onClose={() => setShowImportModal(false)} title="استيراد الفروع مجمعاً من ملف Excel">
+        <div className="space-y-4">
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-[#0A2472] flex items-start gap-2.5">
+            <Building2 className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold mb-1">تعليمات الاستيراد المجمع:</p>
+              <p>1. قم بتحميل قالب Excel المعتمد وتعبئة بيانات الفروع (كود الفرع، الاسم، العنوان، الهاتف).</p>
+              <p>2. تأكد من أن كود كل فرع فريد باللغة الإنجليزية (مثل: BR-CAIRO, BR-GIZA).</p>
+            </div>
+          </div>
+
+          {!importResult ? (
+            <div className="space-y-4">
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-300 hover:border-[#0A2472] rounded-xl p-6 text-center cursor-pointer transition bg-slate-50/50 hover:bg-blue-50/20"
+              >
+                <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-slate-700">
+                  {selectedFile ? selectedFile.name : 'اضغط لاختيار ملف Excel أو اسحبه هنا'}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">يدعم ملفات .xlsx فقط</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setSelectedFile(e.target.files[0]);
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <SecondaryButton onClick={() => setShowImportModal(false)}>إلغاء</SecondaryButton>
+                <PrimaryButton 
+                  onClick={handleExecuteImport} 
+                  disabled={!selectedFile || importing}
+                >
+                  {importing ? 'جاري الاستيراد...' : 'بدء الاستيراد الآن'}
+                </PrimaryButton>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-50 border rounded-xl space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">إجمالي الصفوف المفحوصة:</span>
+                  <span className="font-bold font-mono">{importResult.totalRows}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm text-emerald-600">
+                  <span className="flex items-center gap-1.5 font-semibold">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>تم إنشاؤها بنجاح:</span>
+                  </span>
+                  <span className="font-bold font-mono">{importResult.successCount}</span>
+                </div>
+                {importResult.errorCount > 0 && (
+                  <div className="flex items-center justify-between text-sm text-red-600">
+                    <span className="flex items-center gap-1.5 font-semibold">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>أخطاء / تم تخطيها:</span>
+                    </span>
+                    <span className="font-bold font-mono">{importResult.errorCount}</span>
+                  </div>
+                )}
+              </div>
+
+              {importResult.errors?.length > 0 && (
+                <div className="max-h-40 overflow-y-auto p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 space-y-1">
+                  <p className="font-bold mb-1">تفاصيل الأخطاء:</p>
+                  {importResult.errors.map((err: string, idx: number) => (
+                    <div key={idx}>• {err}</div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <PrimaryButton onClick={() => { setShowImportModal(false); setImportResult(null); setSelectedFile(null); }}>
+                  تم وإغلاق
+                </PrimaryButton>
+              </div>
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );

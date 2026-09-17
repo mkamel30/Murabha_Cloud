@@ -1,17 +1,22 @@
 package com.murabha.cloud.controller;
 
+import com.murabha.cloud.dto.BulkImportResultDto;
 import com.murabha.cloud.entity.Branch;
 import com.murabha.cloud.exception.BadRequestException;
 import com.murabha.cloud.exception.ResourceNotFoundException;
 import com.murabha.cloud.repository.BranchRepository;
 import com.murabha.cloud.security.BranchContext;
 import com.murabha.cloud.security.UserPrincipal;
+import com.murabha.cloud.service.ExcelImportExportService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +28,22 @@ import java.util.UUID;
 public class BranchesController {
 
     private final BranchRepository branchRepository;
+    private final ExcelImportExportService excelService;
+
+    @GetMapping("/template")
+    public ResponseEntity<byte[]> downloadTemplate() {
+        byte[] excelData = excelService.generateBranchesTemplate();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=murabha_branches_template.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelData);
+    }
+
+    @PostMapping("/bulk-import")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<BulkImportResultDto> bulkImport(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(excelService.importBranchesFromExcel(file));
+    }
 
     @GetMapping
     public ResponseEntity<List<Branch>> getAll(@AuthenticationPrincipal UserPrincipal principal) {

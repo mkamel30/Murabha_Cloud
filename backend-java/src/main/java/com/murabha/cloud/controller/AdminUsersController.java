@@ -1,16 +1,21 @@
 package com.murabha.cloud.controller;
 
+import com.murabha.cloud.dto.BulkImportResultDto;
 import com.murabha.cloud.entity.User;
 import com.murabha.cloud.entity.UserRole;
 import com.murabha.cloud.exception.BadRequestException;
 import com.murabha.cloud.exception.ResourceNotFoundException;
 import com.murabha.cloud.repository.UserRepository;
+import com.murabha.cloud.service.ExcelImportExportService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -24,6 +29,21 @@ public class AdminUsersController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ExcelImportExportService excelService;
+
+    @GetMapping("/template")
+    public ResponseEntity<byte[]> downloadTemplate() {
+        byte[] excelData = excelService.generateUsersTemplate();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=murabha_users_template.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelData);
+    }
+
+    @PostMapping("/bulk-import")
+    public ResponseEntity<BulkImportResultDto> bulkImport(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(excelService.importUsersFromExcel(file));
+    }
 
     @GetMapping
     public ResponseEntity<List<User>> getAll() {
