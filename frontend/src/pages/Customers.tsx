@@ -7,6 +7,7 @@ import { useToast } from '@/lib/toast';
 import { LoadingScreen } from '@/lib/Spinner';
 import { Modal } from '@/lib/Modal';
 import { PrimaryButton, SecondaryButton, DangerButton, Toolbar, PageHeader, EmptyState, TableActions } from '@/lib/Actions';
+import { Sparkles } from 'lucide-react';
 
 export default function Customers() {
   const { showToast } = useToast();
@@ -185,31 +186,40 @@ export default function Customers() {
         )}
       </div>
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingCustomer ? ar.common.edit : ar.customers.addNew}>
-        {error && <div className="smart-alert smart-alert-error">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-2 gap-4">
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingCustomer ? ar.common.edit : ar.customers.addNew} maxWidth="max-w-xl">
+        {error && <div className="smart-alert smart-alert-error mb-4">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4 text-right">
+          {/* Row 1: BK Code & Customer Type */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">{ar.customers.bkCode}</label>
-              <div className="flex gap-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">{ar.customers.bkCode} *</label>
+              <div className="flex gap-2 items-center">
                 <input
                   type="text"
                   value={formData.bkCode}
                   onChange={(e) => setFormData({ ...formData, bkCode: e.target.value })}
-                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
+                  className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
+                  placeholder="مثال: BK-1001"
                   required
                 />
-                <SecondaryButton type="button" onClick={generateBkCode}>
-                  {ar.common.add}
-                </SecondaryButton>
+                <button
+                  type="button"
+                  onClick={generateBkCode}
+                  title="توليد كود تلقائي للعميل"
+                  className="shrink-0 px-3 py-2 bg-blue-50 text-[#0A2472] hover:bg-blue-100 border border-blue-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>توليد كود</span>
+                </button>
               </div>
             </div>
+
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">{ar.customers.customerType}</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">{ar.customers.customerType} *</label>
               <select
                 value={formData.customerType}
                 onChange={(e) => setFormData({ ...formData, customerType: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
                 required
               >
                 <option value="عام">عام</option>
@@ -219,55 +229,71 @@ export default function Customers() {
               </select>
             </div>
           </div>
+
+          {/* Row 2: Customer Name */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">{ar.customers.name}</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">{ar.customers.name} *</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
+              placeholder="أدخل اسم العميل ثلاثي أو رباعي..."
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">{ar.customers.phone}</label>
-            <input
-              type="text"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">{ar.customers.address}</label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+
+          {/* Row 3: Phone & Department */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">الإدارة</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">{ar.customers.phone}</label>
+              <input
+                type="text"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="01xxxxxxxxx"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">الإدارة التابع لها</label>
               <input
                 type="text"
                 value={formData.department}
                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">{ar.customers.notes}</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
-                rows={2}
+                placeholder="مثال: إدارة شرق، إدارة وسط..."
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+
+          {/* Row 4: Address */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">{ar.customers.address}</label>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="العنوان التفصيلي للعميل أو المحل..."
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
+            />
+          </div>
+
+          {/* Row 5: Notes */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">{ar.customers.notes}</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="أي ملاحظات إضافية حول العميل..."
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
+              rows={2}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
             <SecondaryButton type="button" onClick={() => setShowModal(false)}>
               {ar.common.cancel}
             </SecondaryButton>

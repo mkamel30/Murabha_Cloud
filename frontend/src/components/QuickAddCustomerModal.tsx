@@ -4,6 +4,7 @@ import { PrimaryButton, SecondaryButton } from '@/lib/Actions';
 import { customersApi } from '@/api/client';
 import type { Customer } from '@/types';
 import { ar } from '@/i18n/ar';
+import { Sparkles } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -81,36 +82,38 @@ export function QuickAddCustomerModal({ isOpen, onClose, onSuccess }: Props) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="إضافة عميل جديد" zIndex="z-[60]" maxWidth="max-w-md">
+    <Modal isOpen={isOpen} onClose={onClose} title="إضافة عميل جديد" zIndex="z-[60]" maxWidth="max-w-lg">
       {error && <div className="smart-alert smart-alert-error mb-4">{error}</div>}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+      <form onSubmit={handleSubmit} className="space-y-4 text-right">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">{ar.customers.bkCode} *</label>
-            <div className="flex gap-1">
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">{ar.customers.bkCode} *</label>
+            <div className="flex gap-2 items-center">
               <input
                 type="text"
                 value={formData.bkCode}
                 onChange={(e) => setFormData({ ...formData, bkCode: e.target.value })}
-                className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
+                className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
+                placeholder="مثال: BK-1001"
                 required
               />
               <button
                 type="button"
                 onClick={handleGenerateCode}
                 title="توليد كود تلقائي"
-                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs transition-colors whitespace-nowrap"
+                className="shrink-0 px-3 py-2 bg-blue-50 text-[#0A2472] hover:bg-blue-100 border border-blue-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                توليد
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span>توليد</span>
               </button>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">{ar.customers.customerType}</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">{ar.customers.customerType} *</label>
             <select
               value={formData.customerType}
               onChange={(e) => setFormData({ ...formData, customerType: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472] transition-colors"
               required
             >
               <option value="عام">عام</option>
