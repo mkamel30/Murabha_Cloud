@@ -1,5 +1,6 @@
 package com.murabha.cloud.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -35,6 +36,7 @@ public class Payment {
     @Column(name = "sale_id", nullable = false)
     private UUID saleId;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sale_id", insertable = false, updatable = false)
     private MachineSale sale;

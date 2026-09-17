@@ -12,7 +12,7 @@ spring:
       write-dates-as-timestamps: false
     default-property-inclusion: non_null
   jpa:
-    open-in-view: false
+    open-in-view: true
   thymeleaf:
     check-template-location: false
 
