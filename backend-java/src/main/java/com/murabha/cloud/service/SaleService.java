@@ -179,6 +179,7 @@ public class SaleService {
                 installments.add(installment);
             }
             installmentRepository.saveAll(installments);
+            sale.setInstallments(installments);
 
             if (downPayment.compareTo(BigDecimal.ZERO) > 0) {
                 sale.setPaidAmount(downPayment);
