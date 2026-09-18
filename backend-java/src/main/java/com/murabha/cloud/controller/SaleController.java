@@ -32,27 +32,34 @@ public class SaleController {
     private final SaleService saleService;
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getAll(
+    public ResponseEntity<?> getAll(
             @RequestParam(required = false) UUID customerId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String saleType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int limit) {
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer limit) {
 
-        int pageIdx = Math.max(0, page - 1);
-        Page<MachineSale> paged = saleService.getAll(
-                BranchContext.getBranchId(), customerId, status, saleType, startDate, endDate,
-                PageRequest.of(pageIdx, limit, Sort.by("saleDate").descending())
+        if (page != null && limit != null) {
+            int pageIdx = Math.max(0, page - 1);
+            Page<MachineSale> paged = saleService.getAll(
+                    BranchContext.getBranchId(), customerId, status, saleType, startDate, endDate,
+                    PageRequest.of(pageIdx, limit, Sort.by("saleDate").descending())
+            );
+
+            return ResponseEntity.ok(Map.of(
+                    "sales", paged.getContent(),
+                    "total", paged.getTotalElements(),
+                    "page", page,
+                    "totalPages", paged.getTotalPages()
+            ));
+        }
+
+        List<MachineSale> list = saleService.getAllList(
+                BranchContext.getBranchId(), customerId, status, saleType, startDate, endDate
         );
-
-        return ResponseEntity.ok(Map.of(
-                "sales", paged.getContent(),
-                "total", paged.getTotalElements(),
-                "page", page,
-                "totalPages", paged.getTotalPages()
-        ));
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/check-serial")

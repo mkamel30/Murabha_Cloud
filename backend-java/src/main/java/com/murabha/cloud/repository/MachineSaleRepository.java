@@ -63,6 +63,22 @@ public interface MachineSaleRepository extends JpaRepository<MachineSale, UUID>,
         return findAll(spec, pageable);
     }
 
+    default List<MachineSale> findSalesWithFiltersList(UUID branchId, UUID customerId, String status, String saleType,
+                                                      LocalDate startDate, LocalDate endDate) {
+        Specification<MachineSale> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (branchId != null) predicates.add(cb.equal(root.get("branchId"), branchId));
+            if (customerId != null) predicates.add(cb.equal(root.get("customerId"), customerId));
+            if (status != null && !status.isBlank()) predicates.add(cb.equal(root.get("status"), status));
+            if (saleType != null && !saleType.isBlank()) predicates.add(cb.equal(root.get("saleType"), saleType));
+            if (startDate != null) predicates.add(cb.greaterThanOrEqualTo(root.get("saleDate"), startDate));
+            if (endDate != null) predicates.add(cb.lessThanOrEqualTo(root.get("saleDate"), endDate));
+            query.orderBy(cb.desc(root.get("saleDate")), cb.desc(root.get("createdAt")));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        return findAll(spec);
+    }
+
     default List<MachineSale> findSalesForReport(UUID branchId, LocalDate startDate, LocalDate endDate, String saleType) {
         Specification<MachineSale> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();

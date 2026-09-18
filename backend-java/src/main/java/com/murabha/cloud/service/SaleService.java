@@ -42,6 +42,12 @@ public class SaleService {
     }
 
     @Transactional(readOnly = true)
+    public List<MachineSale> getAllList(UUID branchId, UUID customerId, String status, String saleType,
+                                        LocalDate startDate, LocalDate endDate) {
+        return saleRepository.findSalesWithFiltersList(branchId, customerId, status, saleType, startDate, endDate);
+    }
+
+    @Transactional(readOnly = true)
     public MachineSale getById(UUID id) {
         MachineSale sale = saleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("عقد البيع غير موجود"));

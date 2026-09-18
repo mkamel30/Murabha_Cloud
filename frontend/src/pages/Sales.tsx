@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { salesApi, customersApi, settingsApi } from '@/api/client';
 import { formatCurrency, formatPaymentPlace } from '@/lib/utils';
 import type { MachineSale, Customer } from '@/types';
@@ -149,9 +150,11 @@ export default function Sales() {
     }
   }, [formData.saleType, formData.totalPrice]);
 
+  const { selectedBranchId } = useAuth();
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedBranchId]);
 
   const loadData = async () => {
     try {
@@ -160,8 +163,14 @@ export default function Sales() {
         customersApi.getAll(),
         settingsApi.getAll().catch(() => ({ enableCashSales: false })),
       ]);
-      setSales(salesData);
-      setCustomers(customersData);
+      const salesList = Array.isArray(salesData)
+        ? salesData
+        : (salesData && Array.isArray((salesData as any).sales) ? (salesData as any).sales : []);
+      const customersList = Array.isArray(customersData)
+        ? customersData
+        : (customersData && Array.isArray((customersData as any).customers) ? (customersData as any).customers : []);
+      setSales(salesList);
+      setCustomers(customersList);
       if (settingsData && typeof settingsData.enableCashSales === 'boolean') {
         setEnableCashSales(settingsData.enableCashSales);
       }
@@ -173,7 +182,7 @@ export default function Sales() {
   };
 
   const filteredSales = useMemo(() => {
-    let data = sales;
+    let data = Array.isArray(sales) ? sales : [];
     if (search) {
       const q = search.toLowerCase();
       data = data.filter((s) =>

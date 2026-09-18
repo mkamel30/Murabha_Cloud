@@ -188,7 +188,12 @@ export const customersApi = {
 };
 
 export const salesApi = {
-  getAll: (search?: string) => api.get('/sales', { params: { search } }).then((r) => r.data),
+  getAll: (search?: string) =>
+    api.get('/sales', { params: { search } }).then((r) => {
+      if (Array.isArray(r.data)) return r.data;
+      if (r.data && Array.isArray(r.data.sales)) return r.data.sales;
+      return [];
+    }),
   getById: (id: string) => api.get(`/sales/${id}`).then((r) => r.data),
   create: (data: unknown) => api.post('/sales', data).then((r) => r.data),
   update: (id: string, data: unknown) => api.put(`/sales/${id}`, data).then((r) => r.data),
