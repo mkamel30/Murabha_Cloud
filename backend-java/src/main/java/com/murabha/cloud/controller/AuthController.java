@@ -180,12 +180,14 @@ public class AuthController {
             branchName = branchRepository.findById(principal.getBranchId()).map(Branch::getName).orElse(null);
         }
 
+        String roleName = (principal.getRole() != null) ? principal.getRole().name() : null;
+
         AuthResponse.UserProfileDto dto = AuthResponse.UserProfileDto.builder()
                 .id(principal.getId())
                 .username(principal.getUsername())
                 .name(principal.getName())
                 .email(principal.getEmail())
-                .role(principal.getRole().name())
+                .role(roleName)
                 .branchId(principal.getBranchId())
                 .branchName(branchName)
                 .build();

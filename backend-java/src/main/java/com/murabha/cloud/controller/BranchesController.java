@@ -47,12 +47,19 @@ public class BranchesController {
 
     @GetMapping
     public ResponseEntity<List<Branch>> getAll(@AuthenticationPrincipal UserPrincipal principal) {
-        if (principal.getBranchId() != null && BranchContext.getBranchId() != null) {
+        if (principal != null && principal.getBranchId() != null && BranchContext.getBranchId() != null) {
             return ResponseEntity.ok(branchRepository.findAll().stream()
                     .filter(b -> b.getId().equals(BranchContext.getBranchId()))
                     .toList());
         }
         return ResponseEntity.ok(branchRepository.findAll());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Branch> getById(@PathVariable UUID id) {
+        Branch branch = branchRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("الفرع غير موجود"));
+        return ResponseEntity.ok(branch);
     }
 
     @PostMapping
@@ -73,6 +80,15 @@ public class BranchesController {
         if (updates.getAddress() != null) branch.setAddress(updates.getAddress());
         if (updates.getPhone() != null) branch.setPhone(updates.getPhone());
         return ResponseEntity.ok(branchRepository.save(branch));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable UUID id) {
+        Branch branch = branchRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("الفرع غير موجود"));
+        branchRepository.delete(branch);
+        return ResponseEntity.ok(Map.of("message", "تم حذف الفرع بنجاح"));
     }
 
     @PostMapping("/{id}/toggle-active")
