@@ -66,7 +66,7 @@ public class DashboardService {
                 .map(MachineSale::getTotalPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        long activeCustomers = customerRepository.countByBranchId(branchId);
+        long activeCustomers = branchId != null ? customerRepository.countByBranchId(branchId) : customerRepository.count();
 
         return Map.ofEntries(
                 Map.entry("todayCollections", todayCollections),
