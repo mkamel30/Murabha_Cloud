@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '@/api/client';
+import { useAuth } from '@/context/AuthContext';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { DashboardStats } from '@/types';
 import { ar } from '@/i18n/ar';
@@ -75,13 +76,14 @@ const COLORS = ['#0A2472', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { selectedBranchId } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [selectedBranchId]);
 
   const loadStats = async () => {
     try {
@@ -109,6 +111,9 @@ export default function Dashboard() {
   }
 
   const s = stats!;
+  const dueThisMonthList = Array.isArray(s.dueThisMonth) ? s.dueThisMonth : [];
+  const recentPaymentsList = Array.isArray(s.recentPayments) ? s.recentPayments : [];
+  const upcomingDueList = Array.isArray(s.upcomingDue) ? s.upcomingDue : [];
 
   // Charts data - ensure all values are numbers
   const cashTotal = Number(s.cashSalesTotal) || 0;
@@ -159,7 +164,7 @@ export default function Dashboard() {
           icon={CalendarCheck}
           label={ar.dashboard.dueThisMonth}
           value={formatCurrency(Number(s.dueThisMonthTotal))}
-          sub={`${s.dueThisMonth.length} قسط`}
+          sub={`${dueThisMonthList.length} قسط`}
           bgColor="bg-amber-600"
           onClick={() => navigate('/reports', { state: { reportType: 'overdue', filter: 'currentMonth' } })}
         />
@@ -213,7 +218,7 @@ export default function Dashboard() {
         <StatCard
           icon={Calendar}
           label={ar.dashboard.dueThisMonth}
-          value={String(s.dueThisMonth.length)}
+          value={String(dueThisMonthList.length)}
           sub={formatCurrency(Number(s.dueThisMonthTotal))}
           colorClass="bg-orange-50 text-orange-600"
           onClick={() => navigate('/followups')}
@@ -258,25 +263,30 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 min-w-0">
           <h3 className="text-sm font-semibold text-slate-700 mb-4">المحفظة</h3>
           <div className="h-64 min-h-[256px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height={240} minWidth={0}>
-              <PieChart>
-                <Pie
-                  data={collectionsPieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {collectionsPieData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            {collectionsPieData.some(d => d.value > 0) ? (
+              <ResponsiveContainer width="100%" height={240} minWidth={0}>
+                <PieChart>
+                  <Pie
+                    data={collectionsPieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    <Cell fill="#10b981" />
+                    <Cell fill="#ef4444" />
+                  </Pie>
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-400">
+                {ar.common.noData}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -305,15 +315,15 @@ export default function Dashboard() {
             <h2 className="text-sm font-bold text-[#0A2472]">{ar.dashboard.recentPayments}</h2>
           </div>
           <div className="divide-y divide-slate-50">
-            {s.recentPayments?.slice(0, 5).map((payment) => (
+            {recentPaymentsList.slice(0, 5).map((payment) => (
               <div 
                 key={payment.id} 
-                onClick={() => navigate(`/sales/${payment.saleId}`)}
+                onClick={() => payment.saleId && navigate(`/sales/${payment.saleId}`)}
                 className="flex items-center justify-between px-5 py-2.5 hover:bg-slate-100 cursor-pointer transition-colors"
               >
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-slate-800 truncate text-sm">
-                    {payment.sale?.customer?.name} ({payment.sale?.customer?.bkCode})
+                    {payment.sale?.customer?.name ? `${payment.sale.customer.name} (${payment.sale.customer.bkCode || ''})` : (payment.receiptNumber || 'تحصيل')}
                   </div>
                   <div className="text-xs text-slate-400 font-mono">{payment.receiptNumber}</div>
                 </div>
@@ -323,7 +333,7 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
-            {(!s.recentPayments || s.recentPayments.length === 0) && (
+            {recentPaymentsList.length === 0 && (
               <div className="text-slate-400 text-center py-6 text-sm">{ar.common.noData}</div>
             )}
           </div>
@@ -335,15 +345,15 @@ export default function Dashboard() {
             <h2 className="text-sm font-bold text-[#0A2472]">{ar.dashboard.upcomingDue}</h2>
           </div>
           <div className="divide-y divide-slate-50">
-            {s.upcomingDue?.slice(0, 5).map((inst) => (
+            {upcomingDueList.slice(0, 5).map((inst) => (
               <div 
                 key={inst.id} 
-                onClick={() => navigate(`/customers/${inst.sale?.customerId}`)}
+                onClick={() => inst.sale?.customerId && navigate(`/customers/${inst.sale.customerId}`)}
                 className="flex items-center justify-between px-5 py-2.5 hover:bg-slate-100 cursor-pointer transition-colors"
               >
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-slate-800 truncate text-sm">
-                    {inst.sale?.customer?.name} ({inst.sale?.customer?.bkCode})
+                    {inst.sale?.customer?.name ? `${inst.sale.customer.name} (${inst.sale.customer.bkCode || ''})` : 'عميل غير محدد'}
                   </div>
                   <div className="text-xs text-slate-400">قسط {inst.installmentNo}</div>
                 </div>
@@ -353,7 +363,7 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
-            {(!s.upcomingDue || s.upcomingDue.length === 0) && (
+            {upcomingDueList.length === 0 && (
               <div className="text-slate-400 text-center py-6 text-sm">{ar.common.noData}</div>
             )}
           </div>
@@ -361,7 +371,7 @@ export default function Dashboard() {
       </div>
 
       {/* Due This Month Table */}
-      {s.dueThisMonth && s.dueThisMonth.length > 0 && (
+      {dueThisMonthList.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/50">
             <h2 className="text-sm font-bold text-[#0A2472]">الأقساط المستحقة هذا الشهر</h2>
@@ -377,14 +387,14 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {s.dueThisMonth.slice(0, 8).map((inst) => (
+                {dueThisMonthList.slice(0, 8).map((inst) => (
                   <tr 
                     key={inst.id} 
-                    onClick={() => navigate(`/customers/${inst.sale?.customerId}`)}
+                    onClick={() => inst.sale?.customerId && navigate(`/customers/${inst.sale.customerId}`)}
                     className="hover:bg-slate-100 cursor-pointer transition-colors"
                   >
                     <td className="px-5 py-2.5 text-sm font-medium text-slate-800">
-                      {inst.sale?.customer?.name} ({inst.sale?.customer?.bkCode})
+                      {inst.sale?.customer?.name ? `${inst.sale.customer.name} (${inst.sale.customer.bkCode || ''})` : 'عميل غير محدد'}
                     </td>
                     <td className="px-5 py-2.5 text-sm text-slate-600">{inst.installmentNo}</td>
                     <td className="px-5 py-2.5 text-sm font-bold text-amber-600">{formatCurrency(Number(inst.amount) - Number(inst.paidAmount))}</td>

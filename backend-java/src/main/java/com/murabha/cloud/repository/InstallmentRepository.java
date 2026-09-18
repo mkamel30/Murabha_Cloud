@@ -36,6 +36,7 @@ public interface InstallmentRepository extends JpaRepository<Installment, UUID>,
             if (branchId != null) predicates.add(cb.equal(root.get("branchId"), branchId));
             if (saleId != null) predicates.add(cb.equal(root.get("saleId"), saleId));
             if (isPaid != null) predicates.add(cb.equal(root.get("isPaid"), isPaid));
+            if (Boolean.FALSE.equals(isPaid)) predicates.add(cb.isFalse(root.get("isWaived")));
             if (startDate != null) predicates.add(cb.greaterThanOrEqualTo(root.get("dueDate"), startDate));
             if (endDate != null) predicates.add(cb.lessThanOrEqualTo(root.get("dueDate"), endDate));
             query.orderBy(cb.asc(root.get("dueDate")));
