@@ -98,6 +98,8 @@ public class InstallmentRequestService {
                 .build();
 
         req = requestRepository.save(req);
+        appendHistory(req, requester, "SUBMITTED", "تم تقديم طلب التقسيط للنظام");
+        req = requestRepository.save(req);
 
         // 1. In-app notification for supervisor
         notificationService.createNotificationForRole(
@@ -155,7 +157,8 @@ public class InstallmentRequestService {
             requiresManager = false;
         }
 
-        appendHistory(req, reviewer, "APPROVED", action.getNotes());
+        String actionName = "PENDING_SUPERVISOR".equals(req.getStatus()) ? "SUPERVISOR_APPROVED" : "APPROVED";
+        appendHistory(req, reviewer, actionName, action.getNotes());
 
         if ("PENDING_SUPERVISOR".equals(req.getStatus())) {
             if (requiresManager) {
@@ -271,12 +274,18 @@ public class InstallmentRequestService {
                 history = objectMapper.readValue(req.getApprovalHistory(), new TypeReference<>() {});
             }
 
+            String name = (actor.getName() != null && !actor.getName().isBlank()) ? actor.getName() : actor.getUsername();
+            String roleName = actor.getRole() != null ? actor.getRole().name() : "";
+
             Map<String, Object> entry = new HashMap<>();
             entry.put("action", action);
             entry.put("actorId", actor.getId().toString());
-            entry.put("actorName", actor.getName());
-            entry.put("actorRole", actor.getRole().name());
-            entry.put("notes", notes);
+            entry.put("userId", actor.getId().toString());
+            entry.put("actorName", name);
+            entry.put("userName", name);
+            entry.put("actorRole", roleName);
+            entry.put("userRole", roleName);
+            entry.put("notes", notes != null ? notes : "");
             entry.put("timestamp", Instant.now().toString());
 
             history.add(entry);

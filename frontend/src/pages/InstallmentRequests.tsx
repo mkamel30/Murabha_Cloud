@@ -25,15 +25,38 @@ import { PrimaryButton, SecondaryButton } from '@/lib/Actions';
 import type { Customer } from '@/types';
 
 interface ApprovalHistoryEntry {
-  step: string;
+  step?: string;
   action: string;
-  userId: string;
-  userName: string;
-  userRole: string;
+  userId?: string;
+  actorId?: string;
+  userName?: string;
+  actorName?: string;
+  userRole?: string;
+  actorRole?: string;
   timestamp: string;
   notes?: string;
   reason?: string;
 }
+
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: 'مدير عام النظام',
+  HQ_MANAGER: 'إدارة HQ',
+  HQ_ACCOUNTANT: 'محاسب عام',
+  BRANCH_MANAGER: 'مدير الفرع',
+  BRANCH_SUPERVISOR: 'مشرف الفرع',
+  BRANCH_CSR: 'موظف خدمة عملاء',
+  BRANCH_COLLECTOR: 'محصل فرع',
+  BRANCH_DATA_ENTRY: 'مدخل بيانات',
+};
+
+const ACTION_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  SUBMITTED: { label: 'تقديم الطلب', bg: 'bg-blue-50', text: 'text-blue-700' },
+  SUPERVISOR_APPROVED: { label: 'موافقة المشرف (بانتظار المدير)', bg: 'bg-indigo-50', text: 'text-indigo-700' },
+  APPROVED: { label: 'موافقة واعتماد', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  FINAL_APPROVED: { label: 'اعتماد نهائي', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  REJECTED: { label: 'رفض الطلب', bg: 'bg-red-50', text: 'text-red-700' },
+  CONVERTED_TO_SALE: { label: 'تحويل لعقد بيع', bg: 'bg-teal-50', text: 'text-teal-700' },
+};
 
 interface InstallmentRequestItem {
   id: string;
@@ -296,7 +319,15 @@ export default function InstallmentRequests() {
   const parseHistory = (historyStr?: string): ApprovalHistoryEntry[] => {
     if (!historyStr) return [];
     try {
-      return JSON.parse(historyStr);
+      const parsed = JSON.parse(historyStr);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map((entry: any) => ({
+        ...entry,
+        userName: entry.userName || entry.actorName || (entry.userId ? `مستخدم #${entry.userId.slice(0, 6)}` : 'مستخدم النظام'),
+        userRole: entry.userRole || entry.actorRole || '',
+        action: entry.action || 'ACTION',
+        timestamp: entry.timestamp || new Date().toISOString(),
+      }));
     } catch {
       return [];
     }
@@ -913,13 +944,18 @@ export default function InstallmentRequests() {
                     {/* Dot on timeline */}
                     <div className="absolute -right-[23px] top-1 w-3 h-3 rounded-full bg-[#0A2472] ring-4 ring-white" />
                     <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                      <span>{entry.action}</span>
+                      <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${ACTION_CONFIG[entry.action]?.bg || 'bg-slate-100'} ${ACTION_CONFIG[entry.action]?.text || 'text-slate-800'}`}>
+                        {ACTION_CONFIG[entry.action]?.label || entry.action}
+                      </span>
                       <span className="text-[10px] text-slate-400 font-mono">
                         {new Date(entry.timestamp).toLocaleString('ar-EG')}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      بواسطة: <strong className="text-slate-700">{entry.userName}</strong> ({entry.userRole})
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      بواسطة: <strong className="text-slate-700">{entry.userName || 'مستخدم النظام'}</strong>
+                      {entry.userRole ? (
+                        <span className="text-slate-500 font-normal"> ({ROLE_LABELS[entry.userRole] || entry.userRole})</span>
+                      ) : null}
                     </div>
                     {entry.notes && (
                       <div className="mt-1 p-2 bg-slate-50 rounded text-[11px] text-slate-600 border border-slate-100">
