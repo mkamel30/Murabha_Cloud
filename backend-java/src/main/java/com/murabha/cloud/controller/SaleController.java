@@ -71,6 +71,7 @@ public class SaleController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER', 'BRANCH_CSR')")
     public ResponseEntity<MachineSale> create(
             @Valid @RequestBody SaleCreateRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -79,6 +80,7 @@ public class SaleController {
     }
 
     @PostMapping("/{id}/pay")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'HQ_ACCOUNTANT', 'BRANCH_MANAGER', 'BRANCH_CSR', 'BRANCH_COLLECTOR')")
     public ResponseEntity<Map<String, Object>> pay(
             @PathVariable UUID id,
             @Valid @RequestBody PaymentRequest req,
@@ -88,6 +90,7 @@ public class SaleController {
     }
 
     @PostMapping("/{id}/payment")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'HQ_ACCOUNTANT', 'BRANCH_MANAGER', 'BRANCH_CSR', 'BRANCH_COLLECTOR')")
     public ResponseEntity<Map<String, Object>> paymentAlias(
             @PathVariable UUID id,
             @Valid @RequestBody PaymentRequest req,
@@ -99,7 +102,7 @@ public class SaleController {
     public ResponseEntity<Map<String, Object>> previewPayment(
             @PathVariable UUID id,
             @RequestBody Map<String, Object> body) {
-        BigDecimal amount = BigDecimal.valueOf(Double.parseDouble(body.get("amount").toString()));
+        BigDecimal amount = new BigDecimal(body.get("amount").toString());
         return ResponseEntity.ok(saleService.previewPayment(id, amount, null));
     }
 

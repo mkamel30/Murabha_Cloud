@@ -14,6 +14,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.murabha.cloud.security.UserPrincipal;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -51,10 +54,17 @@ public class AdminUsersController {
     }
 
     @PostMapping
-    public ResponseEntity<User> create(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<User> create(
+            @RequestBody Map<String, Object> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
         String username = (String) body.get("username");
         if (userRepository.existsByUsername(username)) {
             throw new BadRequestException("اسم المستخدم مستخدم بالفعل");
+        }
+
+        UserRole role = UserRole.valueOf((String) body.get("role"));
+        if (role == UserRole.SUPER_ADMIN && (principal == null || principal.getRole() != UserRole.SUPER_ADMIN)) {
+            throw new AccessDeniedException("فقط مدير النظام العام (Super Admin) يملك صلاحية إنشاء حسابات مدير نظام عام");
         }
 
         User user = User.builder()
@@ -62,7 +72,7 @@ public class AdminUsersController {
                 .name((String) body.get("name"))
                 .email((String) body.get("email"))
                 .password(passwordEncoder.encode((String) body.get("password")))
-                .role(UserRole.valueOf((String) body.get("role")))
+                .role(role)
                 .branchId(body.get("branchId") != null ? UUID.fromString((String) body.get("branchId")) : null)
                 .isActive(true)
                 .build();
@@ -71,13 +81,27 @@ public class AdminUsersController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> update(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<User> update(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("المستخدم غير موجود"));
 
+        boolean isCallerSuperAdmin = principal != null && principal.getRole() == UserRole.SUPER_ADMIN;
+        if (user.getRole() == UserRole.SUPER_ADMIN && !isCallerSuperAdmin) {
+            throw new AccessDeniedException("لا يمكن تعديل بيانات مدير النظام العام إلا بواسطة مدير نظام عام");
+        }
+
         if (body.containsKey("name")) user.setName((String) body.get("name"));
         if (body.containsKey("email")) user.setEmail((String) body.get("email"));
-        if (body.containsKey("role")) user.setRole(UserRole.valueOf((String) body.get("role")));
+        if (body.containsKey("role")) {
+            UserRole newRole = UserRole.valueOf((String) body.get("role"));
+            if (newRole == UserRole.SUPER_ADMIN && !isCallerSuperAdmin) {
+                throw new AccessDeniedException("فقط مدير النظام العام يملك صلاحية الترقية لرتبة Super Admin");
+            }
+            user.setRole(newRole);
+        }
         if (body.containsKey("branchId")) {
             user.setBranchId(body.get("branchId") != null ? UUID.fromString((String) body.get("branchId")) : null);
         }
@@ -86,9 +110,18 @@ public class AdminUsersController {
     }
 
     @PostMapping("/{id}/reset-password")
-    public ResponseEntity<Map<String, String>> resetPassword(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, String>> resetPassword(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("المستخدم غير موجود"));
+
+        boolean isCallerSuperAdmin = principal != null && principal.getRole() == UserRole.SUPER_ADMIN;
+        if (user.getRole() == UserRole.SUPER_ADMIN && !isCallerSuperAdmin) {
+            throw new AccessDeniedException("لا يمكن إعادة تعيين كلمة مرور مدير النظام العام إلا بواسطة مدير نظام عام");
+        }
+
         String newPassword = body.get("newPassword");
         if (newPassword == null || newPassword.length() < 6) {
             throw new BadRequestException("يجب أن تكون كلمة المرور 6 أحرف على الأقل");
@@ -99,16 +132,35 @@ public class AdminUsersController {
     }
 
     @PostMapping("/{id}/toggle-active")
-    public ResponseEntity<Map<String, Object>> toggleActive(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, Object>> toggleActive(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("المستخدم غير موجود"));
+
+        if ("admin".equalsIgnoreCase(user.getUsername())) {
+            throw new BadRequestException("لا يمكن تعطيل الحساب الرئيسي للنظام");
+        }
+        if (user.getRole() == UserRole.SUPER_ADMIN && (principal == null || principal.getRole() != UserRole.SUPER_ADMIN)) {
+            throw new AccessDeniedException("لا يمكن تغيير حالة حساب مدير النظام العام إلا بواسطة مدير نظام عام");
+        }
+
         user.setIsActive(!Boolean.TRUE.equals(user.getIsActive()));
         userRepository.save(user);
         return ResponseEntity.ok(Map.of("message", "تم تحديث حالة الحساب", "isActive", user.getIsActive()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("المستخدم غير موجود"));
+
+        if ("admin".equalsIgnoreCase(user.getUsername()) || user.getRole() == UserRole.SUPER_ADMIN) {
+            throw new BadRequestException("لا يمكن حذف حسابات مدير النظام العام (Super Admin)");
+        }
+
         userRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }

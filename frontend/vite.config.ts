@@ -5,7 +5,7 @@ import path from 'path';
 import packageJson from '../package.json';
 
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? './' : '/',
+  base: '/',
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.versionLabel || 'v' + packageJson.version),

@@ -35,6 +35,7 @@ public class JwtTokenProvider {
                 .claim("username", principal.getUsername())
                 .claim("role", principal.getRole().name())
                 .claim("branchId", principal.getBranchId() != null ? principal.getBranchId().toString() : null)
+                .claim("type", "access")
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -67,6 +68,16 @@ public class JwtTokenProvider {
         try {
             Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
             return true;
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    public boolean isAccessToken(String token) {
+        try {
+            Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+            String type = claims.get("type", String.class);
+            return !"refresh".equalsIgnoreCase(type);
         } catch (JwtException | IllegalArgumentException ex) {
             return false;
         }

@@ -26,6 +26,28 @@ public interface MachineSaleRepository extends JpaRepository<MachineSale, UUID>,
 
     List<MachineSale> findByCustomerIdOrderBySaleDateDesc(UUID customerId);
 
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT
+            coalesce(sum(s.paidAmount), 0),
+            coalesce(sum(s.remainingAmount), 0),
+            count(s)
+        FROM MachineSale s
+        WHERE (:branchId IS NULL OR s.branchId = :branchId)
+          AND upper(s.status) <> 'VOIDED'
+    """)
+    List<Object[]> getSalesAggregateTotals(@org.springframework.data.repository.query.Param("branchId") UUID branchId);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT coalesce(sum(s.totalPrice), 0)
+        FROM MachineSale s
+        WHERE (:branchId IS NULL OR s.branchId = :branchId)
+          AND upper(s.status) <> 'VOIDED'
+          AND upper(s.saleType) = upper(:saleType)
+    """)
+    java.math.BigDecimal sumTotalPriceByType(
+            @org.springframework.data.repository.query.Param("branchId") UUID branchId,
+            @org.springframework.data.repository.query.Param("saleType") String saleType);
+
     default Page<MachineSale> findSalesWithFilters(UUID branchId, UUID customerId, String status, String saleType,
                                                   LocalDate startDate, LocalDate endDate, Pageable pageable) {
         Specification<MachineSale> spec = (root, query, cb) -> {

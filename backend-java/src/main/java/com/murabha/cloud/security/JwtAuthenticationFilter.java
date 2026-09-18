@@ -28,7 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String jwt = getJwtFromRequest(request);
 
-        if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
+        if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt) && tokenProvider.isAccessToken(jwt)) {
             UUID userId = tokenProvider.getUserIdFromToken(jwt);
             userRepository.findById(userId).ifPresent(user -> {
                 if (Boolean.TRUE.equals(user.getIsActive())) {

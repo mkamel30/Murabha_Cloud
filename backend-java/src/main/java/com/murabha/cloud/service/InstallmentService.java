@@ -5,10 +5,12 @@ import com.murabha.cloud.entity.Installment;
 import com.murabha.cloud.exception.BadRequestException;
 import com.murabha.cloud.exception.ResourceNotFoundException;
 import com.murabha.cloud.repository.InstallmentRepository;
+import com.murabha.cloud.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -33,8 +35,10 @@ public class InstallmentService {
 
     @Transactional(readOnly = true)
     public Installment getById(UUID id) {
-        return installmentRepository.findById(id)
+        Installment installment = installmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("القسط غير موجود"));
+        SecurityUtils.validateBranchAccess(installment.getBranchId());
+        return installment;
     }
 
     @Transactional
@@ -43,20 +47,24 @@ public class InstallmentService {
         if (Boolean.TRUE.equals(installment.getIsPaid())) {
             throw new BadRequestException("القسط مدفوع بالكامل بالفعل");
         }
+        if (req.getAmount() == null || req.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            BigDecimal remainingOnInstallment = installment.getAmount().subtract(installment.getPaidAmount());
+            req.setAmount(remainingOnInstallment);
+        }
         return saleService.pay(installment.getSaleId(), req, createdByUserId);
     }
 
     @Transactional
     public Installment update(UUID id, Map<String, Object> updates) {
         Installment inst = getById(id);
+        if (updates.containsKey("isPaid")) {
+            throw new BadRequestException("لا يمكن تعديل حالة سداد القسط يدوياً. يرجى استخدام عملية السداد الرسمية لضمان النزاهة المحاسبية.");
+        }
         if (updates.containsKey("receiptNumber")) {
             inst.setReceiptNumber((String) updates.get("receiptNumber"));
         }
         if (updates.containsKey("paymentPlace")) {
             inst.setPaymentPlace((String) updates.get("paymentPlace"));
-        }
-        if (updates.containsKey("isPaid")) {
-            inst.setIsPaid((Boolean) updates.get("isPaid"));
         }
         return installmentRepository.save(inst);
     }

@@ -30,6 +30,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+let isRefreshing = false;
+let failedQueue: { resolve: (token: string) => void; reject: (err: any) => void }[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Auto-refresh token or redirect to login on 401
 api.interceptors.response.use(
   (response) => response,
@@ -41,19 +55,37 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/login') &&
       !originalRequest.url?.includes('/auth/refresh')
     ) {
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
+
       try {
         const res = await axios.post(`${getApiBaseUrl()}/auth/refresh`, {}, { withCredentials: true });
         const newToken = res.data.accessToken;
         localStorage.setItem('murabha_access_token', newToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        processQueue(null, newToken);
         return api(originalRequest);
       } catch (refreshErr) {
+        processQueue(refreshErr, null);
         localStorage.removeItem('murabha_access_token');
         localStorage.removeItem('murabha_user');
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login';
         }
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
       }
     }
     return Promise.reject(error);
@@ -80,7 +112,7 @@ export const adminUsersApi = {
   bulkImport: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/admin/users/bulk-import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+    return api.post('/admin/users/bulk-import', formData).then((r) => r.data);
   },
 };
 
@@ -95,7 +127,7 @@ export const branchesApi = {
   bulkImport: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/branches/bulk-import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+    return api.post('/branches/bulk-import', formData).then((r) => r.data);
   },
 };
 

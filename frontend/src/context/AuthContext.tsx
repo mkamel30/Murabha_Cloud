@@ -30,8 +30,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('murabha_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('murabha_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      localStorage.removeItem('murabha_user');
+      return null;
+    }
   });
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<any[]>([]);

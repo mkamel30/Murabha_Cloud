@@ -13,6 +13,7 @@ import com.murabha.cloud.repository.CustomerRepository;
 import com.murabha.cloud.repository.InstallmentRequestRepository;
 import com.murabha.cloud.repository.SystemSettingRepository;
 import com.murabha.cloud.repository.UserRepository;
+import com.murabha.cloud.security.SecurityUtils;
 import com.murabha.cloud.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -116,7 +117,11 @@ public class InstallmentRequestService {
                 emails.add(u.getEmail());
             }
         }
-        mailService.sendInstallmentRequestAlert(req, emails, "طلب تقسيط جديد بحاجة للمراجعة والاعتماد");
+        try {
+            mailService.sendInstallmentRequestAlert(req, emails, "طلب تقسيط جديد بحاجة للمراجعة والاعتماد");
+        } catch (Exception e) {
+            log.warn("Could not send email alert for request {}: {}", req.getRequestNumber(), e.getMessage());
+        }
 
         return req;
     }
@@ -128,8 +133,10 @@ public class InstallmentRequestService {
 
     @Transactional(readOnly = true)
     public InstallmentRequest getById(UUID id) {
-        return requestRepository.findById(id)
+        InstallmentRequest req = requestRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("طلب التقسيط غير موجود"));
+        SecurityUtils.validateBranchAccess(req.getBranchId());
+        return req;
     }
 
     @Transactional
@@ -166,7 +173,11 @@ public class InstallmentRequestService {
                         .filter(u -> u.getRole() == UserRole.BRANCH_MANAGER && Boolean.TRUE.equals(u.getIsActive()) && u.getEmail() != null)
                         .map(User::getEmail)
                         .toList();
-                mailService.sendInstallmentRequestAlert(req, managerEmails, "مطلوب اعتماد مدير الفرع لطلب تقسيط");
+                try {
+                    mailService.sendInstallmentRequestAlert(req, managerEmails, "مطلوب اعتماد مدير الفرع لطلب تقسيط");
+                } catch (Exception e) {
+                    log.warn("Could not send manager alert for request {}: {}", req.getRequestNumber(), e.getMessage());
+                }
             } else {
                 req.setStatus("APPROVED");
                 notifyApproved(req);

@@ -6,6 +6,7 @@ import com.murabha.cloud.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -34,6 +35,7 @@ public class PaymentController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'HQ_ACCOUNTANT', 'BRANCH_MANAGER')")
     public ResponseEntity<Payment> update(@PathVariable UUID id, @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(paymentService.update(id, updates));
     }

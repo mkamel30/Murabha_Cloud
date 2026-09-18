@@ -52,19 +52,22 @@ public class DashboardService {
                 .map(i -> i.getAmount().subtract(i.getPaidAmount()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 4. Sales totals
-        List<MachineSale> allSales = saleRepository.findSalesForReport(branchId, null, null, null);
-        BigDecimal totalSalesCount = BigDecimal.valueOf(allSales.size());
-        BigDecimal totalPaidAll = allSales.stream().map(MachineSale::getPaidAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalRemainingAll = allSales.stream().map(MachineSale::getRemainingAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal cashSalesTotal = allSales.stream()
-                .filter(s -> "CASH".equalsIgnoreCase(s.getSaleType()))
-                .map(MachineSale::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal installmentSalesTotal = allSales.stream()
-                .filter(s -> !"CASH".equalsIgnoreCase(s.getSaleType()))
-                .map(MachineSale::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 4. Sales totals via direct DB SQL aggregations (no full table entity loads into JVM heap)
+        List<Object[]> aggList = saleRepository.getSalesAggregateTotals(branchId);
+        BigDecimal totalPaidAll = BigDecimal.ZERO;
+        BigDecimal totalRemainingAll = BigDecimal.ZERO;
+        BigDecimal totalSalesCount = BigDecimal.ZERO;
+        if (aggList != null && !aggList.isEmpty()) {
+            Object[] row = aggList.get(0);
+            totalPaidAll = row[0] != null ? (BigDecimal) row[0] : BigDecimal.ZERO;
+            totalRemainingAll = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
+            totalSalesCount = row[2] != null ? BigDecimal.valueOf(((Number) row[2]).longValue()) : BigDecimal.ZERO;
+        }
+
+        BigDecimal cashSalesTotal = saleRepository.sumTotalPriceByType(branchId, "CASH");
+        if (cashSalesTotal == null) cashSalesTotal = BigDecimal.ZERO;
+        BigDecimal installmentSalesTotal = saleRepository.sumTotalPriceByType(branchId, "INSTALLMENT");
+        if (installmentSalesTotal == null) installmentSalesTotal = BigDecimal.ZERO;
 
         long activeCustomers = branchId != null ? customerRepository.countByBranchId(branchId) : customerRepository.count();
 

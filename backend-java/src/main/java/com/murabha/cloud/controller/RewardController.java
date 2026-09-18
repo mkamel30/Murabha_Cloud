@@ -8,6 +8,7 @@ import com.murabha.cloud.exception.ResourceNotFoundException;
 import com.murabha.cloud.repository.InstallmentRepository;
 import com.murabha.cloud.repository.MachineSaleRepository;
 import com.murabha.cloud.repository.PaymentRepository;
+import com.murabha.cloud.security.SecurityUtils;
 import com.murabha.cloud.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -46,13 +47,15 @@ public class RewardController {
 
         MachineSale sale = saleRepository.findById(saleId)
                 .orElseThrow(() -> new ResourceNotFoundException("العقد غير موجود"));
+        SecurityUtils.validateBranchAccess(sale.getBranchId());
 
         BigDecimal totalWaived = BigDecimal.ZERO;
         int count = 0;
 
         for (String rawId : rawIds) {
             Installment inst = installmentRepository.findById(UUID.fromString(rawId)).orElse(null);
-            if (inst != null && !Boolean.TRUE.equals(inst.getIsPaid()) && !Boolean.TRUE.equals(inst.getIsWaived())) {
+            // Strict verification that the installment belongs to this specific sale
+            if (inst != null && sale.getId().equals(inst.getSaleId()) && !Boolean.TRUE.equals(inst.getIsPaid()) && !Boolean.TRUE.equals(inst.getIsWaived())) {
                 BigDecimal unpaid = inst.getAmount().subtract(inst.getPaidAmount());
                 totalWaived = totalWaived.add(unpaid);
                 inst.setIsWaived(true);

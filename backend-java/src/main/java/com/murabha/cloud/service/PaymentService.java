@@ -3,6 +3,7 @@ package com.murabha.cloud.service;
 import com.murabha.cloud.entity.Payment;
 import com.murabha.cloud.exception.ResourceNotFoundException;
 import com.murabha.cloud.repository.PaymentRepository;
+import com.murabha.cloud.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +26,10 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public Payment getById(UUID id) {
-        return paymentRepository.findById(id)
+        Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("سجل الدفعة غير موجود"));
+        SecurityUtils.validateBranchAccess(payment.getBranchId());
+        return payment;
     }
 
     @Transactional

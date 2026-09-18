@@ -6,6 +6,7 @@ import com.murabha.cloud.entity.FollowUp;
 import com.murabha.cloud.exception.ResourceNotFoundException;
 import com.murabha.cloud.repository.CustomerRepository;
 import com.murabha.cloud.repository.FollowUpRepository;
+import com.murabha.cloud.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,8 +35,10 @@ public class FollowUpService {
 
     @Transactional(readOnly = true)
     public FollowUp getById(UUID id) {
-        return followUpRepository.findById(id)
+        FollowUp followUp = followUpRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("سجل المتابعة غير موجود"));
+        SecurityUtils.validateBranchAccess(followUp.getBranchId());
+        return followUp;
     }
 
     @Transactional

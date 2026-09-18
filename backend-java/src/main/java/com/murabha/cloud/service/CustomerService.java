@@ -6,7 +6,10 @@ import com.murabha.cloud.exception.BadRequestException;
 import com.murabha.cloud.exception.ResourceNotFoundException;
 import com.murabha.cloud.repository.CustomerRepository;
 import com.murabha.cloud.repository.MachineSaleRepository;
+import com.murabha.cloud.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +35,7 @@ public class CustomerService {
     public Customer getById(UUID id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("العميل غير موجود"));
+        SecurityUtils.validateBranchAccess(customer.getBranchId());
         if (customer.getSales() != null) {
             customer.getSales().size();
         }

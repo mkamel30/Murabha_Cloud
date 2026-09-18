@@ -63,6 +63,7 @@ public class InstallmentRequestController {
     }
 
     @PostMapping("/{id}/convert-to-sale")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER', 'BRANCH_CSR')")
     public ResponseEntity<MachineSale> convertToSale(
             @PathVariable UUID id,
             @Valid @RequestBody ApprovalActionRequest action,

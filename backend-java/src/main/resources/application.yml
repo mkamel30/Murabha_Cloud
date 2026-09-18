@@ -37,7 +37,7 @@ app:
     allowed-headers: "*"
     allow-credentials: true
   mfa:
-    master-secret: NVRW643UMF2HK3DM
+    master-secret: ${APP_MFA_MASTER_SECRET:}
   rate-limit:
     login-capacity: 30
     login-duration-minutes: 15

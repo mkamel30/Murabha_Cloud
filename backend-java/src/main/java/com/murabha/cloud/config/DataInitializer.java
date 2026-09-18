@@ -58,11 +58,8 @@ public class DataInitializer implements CommandLineRunner {
                     .isActive(true)
                     .build();
             userRepository.save(admin);
-        } else if (!passwordEncoder.matches("Admin@2026!", admin.getPassword())) {
-            log.info("Updating admin account password to default Admin@2026!...");
-            admin.setPassword(passwordEncoder.encode("Admin@2026!"));
-            userRepository.save(admin);
         }
+
 
         // 3. Seed Default System Settings
         if (!settingRepository.existsById("enableCashSales")) {

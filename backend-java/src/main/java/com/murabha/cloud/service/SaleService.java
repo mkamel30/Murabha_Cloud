@@ -12,6 +12,7 @@ import com.murabha.cloud.repository.CustomerRepository;
 import com.murabha.cloud.repository.InstallmentRepository;
 import com.murabha.cloud.repository.MachineSaleRepository;
 import com.murabha.cloud.repository.PaymentRepository;
+import com.murabha.cloud.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +45,7 @@ public class SaleService {
     public MachineSale getById(UUID id) {
         MachineSale sale = saleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("عقد البيع غير موجود"));
+        SecurityUtils.validateBranchAccess(sale.getBranchId());
         if (sale.getCustomer() != null) {
             sale.getCustomer().getName();
         }
@@ -223,6 +225,9 @@ public class SaleService {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("يجب أن يكون مبلغ السداد أكبر من صفر");
         }
+        if (amount.compareTo(sale.getRemainingAmount()) > 0) {
+            throw new BadRequestException(String.format("مبلغ السداد (%.2f) يتجاوز إجمالي المبلغ المتبقي على العقد (%.2f)", amount, sale.getRemainingAmount()));
+        }
 
         String receiptNumber = req.getReceiptNumber() != null && !req.getReceiptNumber().isBlank()
                 ? req.getReceiptNumber().trim()
@@ -354,12 +359,14 @@ public class SaleService {
     private String generateReceiptNumber() {
         String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         long count = saleRepository.count();
-        return String.format("SAL-%s-%04d", datePart, count + 1);
+        long millisSuffix = System.currentTimeMillis() % 1000;
+        return String.format("SAL-%s-%04d%03d", datePart, (count + 1) % 10000, millisSuffix);
     }
 
     private String generatePaymentReceipt() {
         String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         long count = paymentRepository.count();
-        return String.format("PAY-%s-%04d", datePart, count + 1);
+        long millisSuffix = System.currentTimeMillis() % 1000;
+        return String.format("PAY-%s-%04d%03d", datePart, (count + 1) % 10000, millisSuffix);
     }
 }

@@ -91,11 +91,6 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-400">
-            حساب افتراضي للإدارة: <span className="font-mono text-slate-600 font-bold">admin</span> / <span className="font-mono text-slate-600 font-bold">Admin@2026!</span>
-          </p>
-        </div>
       </div>
     </div>
   );

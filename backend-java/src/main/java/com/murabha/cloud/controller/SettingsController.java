@@ -64,6 +64,10 @@ public class SettingsController {
         List<SystemSetting> settings = settingRepository.findAll();
         Map<String, Object> map = new HashMap<>();
         for (SystemSetting s : settings) {
+            // Never expose sensitive configuration keys to unprivileged users in general settings
+            if ("mail_config".equalsIgnoreCase(s.getKey()) || s.getKey().toLowerCase().contains("password") || s.getKey().toLowerCase().contains("secret")) {
+                continue;
+            }
             if ("enableCashSales".equals(s.getKey())) {
                 map.put(s.getKey(), Boolean.parseBoolean(s.getValue()));
             } else if ("paymentPlaces".equals(s.getKey())) {
