@@ -43,10 +43,11 @@ public class DataInitializer implements CommandLineRunner {
             return branchRepository.save(b);
         });
 
-        // 2. Seed Super Admin User if empty
-        if (!userRepository.existsByUsername("admin")) {
+        // 2. Seed or update Super Admin User
+        User admin = userRepository.findByUsername("admin").orElse(null);
+        if (admin == null) {
             log.info("Initializing default Super Admin account (admin / Admin@2026!)...");
-            User admin = User.builder()
+            admin = User.builder()
                     .id(UUID.fromString("00000000-0000-0000-0000-000000000002"))
                     .username("admin")
                     .name("مدير النظام (Super Admin)")
@@ -56,6 +57,10 @@ public class DataInitializer implements CommandLineRunner {
                     .branchId(hqBranch.getId())
                     .isActive(true)
                     .build();
+            userRepository.save(admin);
+        } else if (!passwordEncoder.matches("Admin@2026!", admin.getPassword())) {
+            log.info("Updating admin account password to default Admin@2026!...");
+            admin.setPassword(passwordEncoder.encode("Admin@2026!"));
             userRepository.save(admin);
         }
 
