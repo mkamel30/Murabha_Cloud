@@ -8,21 +8,21 @@
 [![Flyway](https://img.shields.io/badge/Migration-Flyway-CC0202.svg?logo=flyway&logoColor=white)](https://flywaydb.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
 
-An enterprise-grade, cloud-native platform designed for managing installment sales, Murabaha contracts, and multi-branch debt collections.
+An open-source, production-ready platform designed specifically to handle the headaches of multi-branch installment sales and debt collections.
 
-This branch (`feature/spring-boot-migration`) hosts the **Java Spring Boot 3.3 enterprise backend** (`backend-java`), providing full contract parity with the React frontend while upgrading the core services to Java 17 LTS, Spring Security 6, Spring Data JPA, and multi-database support (H2, PostgreSQL, Oracle).
+This repository holds the **Java Spring Boot 3.3 backend** (`backend-java`) and a modern **React frontend**. It's built to be robust, secure, and ready for real-world financial operations.
 
 ---
 
 ## 🌟 Why Murabha Cloud?
 
-Running multi-branch installment operations comes with real-world headaches: data leaks between branches, delayed collections reporting, and clunky database migrations. Murabha Cloud solves these directly:
+If you've ever managed a multi-branch installment business, you know the struggle: data leaking between branches, delayed reporting, and messy spreadsheets. We built Murabha Cloud to solve this:
 
-- **Isolated Multi-Branch Operations**: Branch collectors and managers see only what belongs to their branch. Strict database-level isolation guarantees zero cross-branch data leaks.
-- **HQ Visibility & Real-Time Aggregation**: Headquarters managers and accountants enjoy real-time consolidated KPIs, branch-by-branch collection benchmarks, and live payment activity streams.
-- **Database Freedom (H2 dev, PostgreSQL staging, Oracle enterprise)**: Instant zero-setup development with embedded H2, robust team testing with PostgreSQL, and automated migration tooling for enterprise Oracle Database.
-- **Built for Security Audits**: OWASP Top 10 compliant with Spring Security 6, tamper-proof audit trails, and zero backdoor bypasses.
-- **Type-Safe Financial Engine**: Zero floating-point rounding errors via `java.math.BigDecimal` exact arithmetic and transactional FIFO installment allocation.
+- **True Branch Isolation**: Your branch managers and collectors only see what belongs to them. No accidental (or intentional) peeking at other branches.
+- **HQ Visibility**: The headquarters gets a real-time, bird's-eye view of all branches. Compare collections, spot delays, and export data instantly.
+- **Database Flexibility**: Start developing instantly with H2, run your staging/production on PostgreSQL, or hook it up to an Enterprise Oracle Database if your company requires it.
+- **Built for Security**: We take security seriously. No hardcoded secrets, strict JWT + HttpOnly refresh cookies, and robust defenses against BOLA/IDOR vulnerabilities.
+- **Financial Precision**: We use exact math (`java.math.BigDecimal`) for all money operations, so you'll never lose a cent to floating-point rounding errors.
 
 ---
 
@@ -169,8 +169,6 @@ cd backend-java
 
 ## 📚 Documentation Index
 
-- [01-MASTER_PLAN.md](./docs/spring-boot-migration/01-MASTER_PLAN.md) — Master Migration Roadmap & Strategy
-- [02-TASKS.md](./docs/spring-boot-migration/02-TASKS.md) — Granular Task Breakdown & Progress Checklist
 - [03-API_CONTRACT.md](./docs/spring-boot-migration/03-API_CONTRACT.md) — Complete 88-Endpoint API Contract Reference
 - [04-TECH_MAPPING.md](./docs/spring-boot-migration/04-TECH_MAPPING.md) — Node.js to Java Spring Boot Technology Mapping
 - [backend-java/README.md](./backend-java/README.md) — Java Backend Developer Manual
