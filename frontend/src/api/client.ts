@@ -285,6 +285,7 @@ export const exportApi = {
   full: () => api.get('/export/full', { responseType: 'blob' }).then((r) => r.data),
   receipt: (paymentId: string) => api.get(`/export/receipt/${paymentId}`).then((r) => r.data),
   contract: (saleId: string) => api.get(`/export/contract/${saleId}`).then((r) => r.data),
+  clearance: (saleId: string) => api.get(`/export/clearance/${saleId}`).then((r) => r.data),
   statement: (customerId: string) => api.get(`/export/statement/${customerId}`).then((r) => r.data),
 };
 

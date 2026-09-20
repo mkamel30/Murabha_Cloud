@@ -68,4 +68,13 @@ public class ExportController {
                 .contentType(MediaType.TEXT_HTML)
                 .body(exportService.generateContractHtml(sale));
     }
+
+    @GetMapping("/clearance/{saleId}")
+    public ResponseEntity<String> printableClearance(@PathVariable UUID saleId) {
+        MachineSale sale = saleRepository.findById(saleId)
+                .orElseThrow(() -> new IllegalArgumentException("العقد غير موجود"));
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(exportService.generateClearanceHtml(sale));
+    }
 }

@@ -351,4 +351,153 @@ public class ExportService {
 
         return sb.toString();
     }
+
+    public String generateClearanceHtml(MachineSale sale) {
+        String logoUri = getLogoDataUri();
+        com.murabha.cloud.entity.Customer customer = sale.getCustomer();
+        if (customer == null && sale.getCustomerId() != null) {
+            customer = customerRepository.findById(sale.getCustomerId()).orElse(null);
+        }
+
+        String branchName = "الفرع الرئيسي";
+        if (sale.getBranchId() != null) {
+            branchName = branchRepository.findById(sale.getBranchId())
+                    .map(com.murabha.cloud.entity.Branch::getName)
+                    .orElse("الفرع الرئيسي");
+        }
+
+        List<Payment> payments = paymentRepository.findBySaleIdOrderByPaidAtAsc(sale.getId());
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!DOCTYPE html><html dir='rtl' lang='ar'><head><meta charset='UTF-8'>");
+        sb.append("<title>شهادة مخالصة مالية - ").append(escape(sale.getReceiptNumber())).append("</title>");
+        sb.append("<style>");
+        sb.append("@page { size: A4; margin: 10mm; }");
+        sb.append("* { margin: 0; padding: 0; box-sizing: border-box; }");
+        sb.append("body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 9pt; line-height: 1.4; background: #fff; color: #1e293b; padding: 10px; }");
+        sb.append(".clearance-page { max-width: 210mm; margin: 0 auto; border: 2px solid #059669; border-radius: 12px; padding: 24px; position: relative; background: #fff; }");
+        sb.append("@media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 0; } .clearance-page { border: 2px solid #059669; margin: 0; width: 100%; } }");
+        sb.append(".header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 12px; margin-bottom: 14px; }");
+        sb.append(".logo { max-height: 55px; max-width: 150px; object-fit: contain; }");
+        sb.append(".company-info { text-align: left; }");
+        sb.append(".company-name { font-size: 12pt; font-weight: 900; color: #059669; }");
+        sb.append(".branch-name { font-size: 9pt; color: #64748b; }");
+        sb.append(".badge { display: inline-block; padding: 4px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 20px; color: #047857; font-weight: 800; font-size: 9pt; margin-top: 4px; }");
+        sb.append(".title { text-align: center; font-size: 15pt; font-weight: 900; color: #065f46; margin-bottom: 14px; padding: 8px; background: #ecfdf5; border: 1.5px dashed #059669; border-radius: 8px; }");
+        sb.append(".declaration-box { background: #f8fafc; border: 1px solid #e2e8f0; border-right: 4px solid #059669; border-radius: 6px; padding: 14px; font-size: 9.5pt; line-height: 1.7; color: #0f172a; margin-bottom: 16px; text-align: justify; }");
+        sb.append(".info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; font-size: 9pt; }");
+        sb.append(".info-item { display: flex; justify-content: space-between; border-bottom: 1px dotted #86efac; padding-bottom: 4px; }");
+        sb.append(".info-label { color: #065f46; font-weight: 600; }");
+        sb.append(".info-val { font-weight: 800; color: #0f172a; }");
+        sb.append(".section-title { font-size: 10.5pt; font-weight: 800; color: #065f46; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }");
+        sb.append(".table-container { margin-bottom: 16px; overflow-x: auto; }");
+        sb.append("table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }");
+        sb.append("th { background: #ecfdf5; color: #065f46; font-weight: 800; border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; }");
+        sb.append("td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; color: #1e293b; }");
+        sb.append("tr:nth-child(even) { background: #f8fafc; }");
+        sb.append(".total-banner { display: flex; justify-content: space-between; align-items: center; background: #059669; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 10pt; font-weight: 800; margin-bottom: 20px; }");
+        sb.append(".signatures { display: flex; justify-content: space-between; margin-top: 25px; padding-top: 10px; }");
+        sb.append(".sig-box { width: 28%; text-align: center; font-size: 9pt; font-weight: 800; color: #334155; }");
+        sb.append(".sig-line { margin-top: 35px; border-top: 1px dashed #64748b; padding-top: 4px; font-size: 8pt; color: #64748b; font-weight: normal; }");
+        sb.append(".stamp-box { width: 100px; height: 100px; border: 2px dashed #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; color: #059669; font-weight: 900; font-size: 8.5pt; text-align: center; padding: 6px; }");
+        sb.append(".footer { text-align: center; margin-top: 20px; font-size: 8pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }");
+        sb.append("</style></head><body>");
+
+        sb.append("<div class='clearance-page'>");
+
+        // Header
+        sb.append("<div class='header'>");
+        sb.append("  <img src='").append(logoUri).append("' alt='Logo' class='logo' />");
+        sb.append("  <div class='company-info'>");
+        sb.append("    <div class='company-name'>شركة المرابحة لتقسيط الماكينات الذكية</div>");
+        sb.append("    <div class='branch-name'>").append(escape(branchName)).append("</div>");
+        sb.append("    <div class='badge'>خالصة السداد بالكامل ✓</div>");
+        sb.append("  </div>");
+        sb.append("</div>");
+
+        // Title
+        sb.append("<div class='title'>شهادة مخالصة مالية نهائية وإبراء ذمة</div>");
+
+        // Legal Declaration
+        String custName = customer != null ? customer.getName() : "السيد العميل";
+        String bkCode = customer != null ? customer.getBkCode() : "";
+        String phone = customer != null && customer.getPhone() != null ? customer.getPhone() : "";
+
+        sb.append("<div class='declaration-box'>");
+        sb.append("  تُقر وتُشهد <strong>شركة المرابحة لتقسيط الماكينات الذكية (").append(escape(branchName)).append(")</strong> بأن السيد / ");
+        sb.append("  <strong>").append(escape(custName)).append("</strong> (كود العميل: <code>").append(escape(bkCode)).append("</code>) ");
+        sb.append("  المشتري بموجب <strong>عقد البيع رقم (").append(escape(sale.getReceiptNumber())).append(")</strong> المؤرخ في ").append(sale.getSaleDate() != null ? sale.getSaleDate().toString() : "").append(" ");
+        sb.append("  الخاص بالماكينة سيريال رقم: <strong>").append(escape(sale.getMachineSerial())).append("</strong> ");
+        sb.append("  قد قام بسداد <strong>كامل القيمة التعاقدية وكافة الأقساط المستحقة</strong> دون أي استثناء، وبناءً عليه تُعلن الشركة براءة ذمة العميل المذكور والضامن (إن وُجد) براءة تامة ونهائية لا رجعة فيها من أي التزامات مالية أو قانونية تخص هذا العقد حتى تاريخ تحرير هذه الشهادة.");
+        sb.append("</div>");
+
+        // Summary Info Grid
+        sb.append("<div class='info-grid'>");
+        sb.append("  <div class='info-item'><span class='info-label'>رقم العقد:</span><span class='info-val'>").append(escape(sale.getReceiptNumber())).append("</span></div>");
+        sb.append("  <div class='info-item'><span class='info-label'>سيريال الماكينة:</span><span class='info-val'>").append(escape(sale.getMachineSerial())).append("</span></div>");
+        sb.append("  <div class='info-item'><span class='info-label'>إجمالي سعر العقد:</span><span class='info-val'>").append(formatMoney(sale.getTotalPrice())).append("</span></div>");
+        sb.append("  <div class='info-item'><span class='info-label'>إجمالي المسدد:</span><span class='info-val' style='color:#059669;'>").append(formatMoney(sale.getPaidAmount())).append("</span></div>");
+        sb.append("  <div class='info-item'><span class='info-label'>المتبقي المستحق:</span><span class='info-val' style='color:#059669;'>0.00 ج.م (لا يوجد)</span></div>");
+        sb.append("  <div class='info-item'><span class='info-label'>تاريخ إغلاق الحساب:</span><span class='info-val'>").append(LocalDate.now().toString()).append("</span></div>");
+        sb.append("</div>");
+
+        // Statement of Payments Table
+        sb.append("<div class='section-title'>");
+        sb.append("  <span>سجل التحصيلات والدفعات المسددة</span>");
+        sb.append("  <span style='font-size:8pt;color:#64748b;font-weight:normal;'>عدد العمليات: ").append(payments.size()).append(" عملية</span>");
+        sb.append("</div>");
+
+        sb.append("<div class='table-container'>");
+        sb.append("<table>");
+        sb.append("  <thead><tr>");
+        sb.append("    <th>م</th>");
+        sb.append("    <th>رقم الإيصال</th>");
+        sb.append("    <th>تاريخ السداد</th>");
+        sb.append("    <th>المبلغ المسدد</th>");
+        sb.append("    <th>جهة السداد</th>");
+        sb.append("    <th>البيان</th>");
+        sb.append("  </tr></thead><tbody>");
+
+        int pIdx = 1;
+        for (Payment p : payments) {
+            String pType = "DOWN_PAYMENT".equalsIgnoreCase(p.getPaymentType()) ? "دفعة مقدمة" : "سداد قسط";
+            sb.append("  <tr>");
+            sb.append("    <td>").append(pIdx++).append("</td>");
+            sb.append("    <td style='font-family:monospace;font-weight:bold;'>").append(escape(p.getReceiptNumber())).append("</td>");
+            sb.append("    <td>").append(p.getPaidAt() != null ? p.getPaidAt().toString() : "").append("</td>");
+            sb.append("    <td style='font-weight:bold;color:#059669;'>").append(formatMoney(p.getAmount())).append("</td>");
+            sb.append("    <td>").append(escape(p.getPaymentPlace() != null ? p.getPaymentPlace() : "Damen")).append("</td>");
+            sb.append("    <td>").append(pType).append("</td>");
+            sb.append("  </tr>");
+        }
+
+        if (payments.isEmpty()) {
+            sb.append("  <tr><td colspan='6'>تم السداد بالكامل بنجاح بموجب إيصالات الحسابات</td></tr>");
+        }
+
+        sb.append("</tbody></table></div>");
+
+        // Total Banner
+        sb.append("<div class='total-banner'>");
+        sb.append("  <span>إجمالي المبالغ المسددة: ").append(formatMoney(sale.getPaidAmount())).append("</span>");
+        sb.append("  <span>المديونية المتبقية: 0.00 ج.م (خالص تماماً)</span>");
+        sb.append("</div>");
+
+        // Signatures
+        sb.append("<div class='signatures'>");
+        sb.append("  <div class='sig-box'>رئيس الحسابات / المالية<div class='sig-line'>التوقيع والاعتماد</div></div>");
+        sb.append("  <div class='sig-box'><div class='stamp-box'>خاتم براءة الذمة المعتمد</div></div>");
+        sb.append("  <div class='sig-box'>مدير الفرع العام<div class='sig-line'>التوقيع والاعتماد</div></div>");
+        sb.append("</div>");
+
+        sb.append("<div class='footer'>");
+        sb.append("  صدرت هذه الشهادة الرسمية بناءً على طلب العميل لتقديمها إلى من يهمه الأمر دون أي مسؤولية على الشركة تجاه حقوق الغير — منظومة مرابحة كلاود");
+        sb.append("</div>");
+
+        sb.append("</div>");
+        sb.append("<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };</script>");
+        sb.append("</body></html>");
+
+        return sb.toString();
+    }
 }

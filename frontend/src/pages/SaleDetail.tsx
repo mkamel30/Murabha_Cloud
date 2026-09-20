@@ -11,7 +11,7 @@ import { Modal } from '@/lib/Modal';
 import { PrimaryButton, SecondaryButton, DangerButton, PageHeader, EmptyState } from '@/lib/Actions';
 import { PaymentPlaceSelect } from '@/lib/PaymentPlace';
 import { SmartSelect } from '@/lib/SmartSelect';
-import { Gift, Edit2, Printer } from 'lucide-react';
+import { Gift, Edit2, Printer, FileCheck2 } from 'lucide-react';
 
 export default function SaleDetail() {
   const { showToast } = useToast();
@@ -212,6 +212,26 @@ export default function SaleDetail() {
       }
     } catch (err) {
       console.error('Failed to print contract:', err);
+      showToast('فشل طباعة العقد', 'error');
+    }
+  };
+
+  const handlePrintClearance = async () => {
+    try {
+      const html = await exportApi.clearance(id!);
+      const printWindow = window.open('', '_blank', 'width=1000,height=800,menubar=no,toolbar=no,location=no,status=no');
+      if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        
+        setTimeout(() => {
+          printWindow.print();
+        }, 300);
+      }
+    } catch (err) {
+      console.error('Failed to print clearance:', err);
+      showToast('فشل طباعة شهادة المخالصة', 'error');
     }
   };
 
@@ -429,6 +449,12 @@ export default function SaleDetail() {
             <Printer size={14} />
             <span>{ar.sales.contract}</span>
           </SecondaryButton>
+          {(sale.status === 'COMPLETED' || Number(sale.remainingAmount) <= 0) && (
+            <SecondaryButton size="sm" onClick={handlePrintClearance} className="flex items-center gap-1.5 font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300">
+              <FileCheck2 size={14} />
+              <span>طباعة شهادة مخالصة</span>
+            </SecondaryButton>
+          )}
           {sale.status === 'ACTIVE' && sale.saleType === 'INSTALLMENT' && (
             <PrimaryButton size="sm" onClick={() => setShowPaymentModal(true)}>
               {ar.payments.addNew}
