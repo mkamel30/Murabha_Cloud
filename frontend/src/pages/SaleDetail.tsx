@@ -11,7 +11,7 @@ import { Modal } from '@/lib/Modal';
 import { PrimaryButton, SecondaryButton, DangerButton, PageHeader, EmptyState } from '@/lib/Actions';
 import { PaymentPlaceSelect } from '@/lib/PaymentPlace';
 import { SmartSelect } from '@/lib/SmartSelect';
-import { Gift, Edit2 } from 'lucide-react';
+import { Gift, Edit2, Printer } from 'lucide-react';
 
 export default function SaleDetail() {
   const { showToast } = useToast();
@@ -425,11 +425,10 @@ export default function SaleDetail() {
           <span className={`px-2 py-1 rounded text-xs font-medium ${sale.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : sale.status === 'VOIDED' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-600'}`}>
             {sale.status === 'ACTIVE' ? ar.sales.active : sale.status === 'VOIDED' ? ar.sales.voided : ar.sales.completed}
           </span>
-          {sale.saleType === 'INSTALLMENT' && (
-            <SecondaryButton size="sm" onClick={handlePrintContract}>
-              {ar.sales.contract}
-            </SecondaryButton>
-          )}
+          <SecondaryButton size="sm" onClick={handlePrintContract} className="flex items-center gap-1.5 font-bold text-[#0A2472] bg-blue-50/70 hover:bg-blue-100 border-blue-200">
+            <Printer size={14} />
+            <span>{ar.sales.contract}</span>
+          </SecondaryButton>
           {sale.status === 'ACTIVE' && sale.saleType === 'INSTALLMENT' && (
             <PrimaryButton size="sm" onClick={() => setShowPaymentModal(true)}>
               {ar.payments.addNew}
