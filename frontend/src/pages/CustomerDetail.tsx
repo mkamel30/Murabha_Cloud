@@ -58,6 +58,14 @@ export default function CustomerDetail() {
             <div><span className="text-gray-500">{ar.customers.phone}:</span> {customer.phone || '-'}</div>
             <div><span className="text-gray-500">{ar.customers.address}:</span> {customer.address || '-'}</div>
             <div><span className="text-gray-500">{ar.customers.notes}:</span> {customer.notes || '-'}</div>
+            {customer.walletBalance !== undefined && (
+              <div className="pt-2 border-t mt-2">
+                <span className="text-gray-500 font-bold">رصيد المحفظة (الرصيد الدائن):</span>{' '}
+                <span className={`font-bold ${Number(customer.walletBalance) > 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
+                  {formatCurrency(customer.walletBalance)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { salesApi, rewardsApi, installmentsApi } from '@/api/client';
+import { salesApi, rewardsApi, installmentsApi, settingsApi } from '@/api/client';
 import { formatCurrency, formatDate, isOverdue } from '@/lib/utils';
 import type { MachineSale } from '@/types';
 import { ar } from '@/i18n/ar';
@@ -24,6 +24,9 @@ export default function SaleDetail() {
   const [showPayModal, setShowPayModal] = useState(false);
   const [showWaiveModal, setShowWaiveModal] = useState(false);
   const [showEditSaleModal, setShowEditSaleModal] = useState(false);
+  const [showEarlySettleModal, setShowEarlySettleModal] = useState(false);
+  const [earlySettleDiscount, setEarlySettleDiscount] = useState(0);
+  const [enableEarlySettlement, setEnableEarlySettlement] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<{id: string; amount: number} | null>(null);
   const [selectedWaiveIds, setSelectedWaiveIds] = useState<string[]>([]);
   const [waiveReason, setWaiveReason] = useState('');
@@ -111,6 +114,30 @@ export default function SaleDetail() {
       console.error('Failed to load sale:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settings = await settingsApi.getAll();
+        setEnableEarlySettlement(settings.enableEarlySettlement === 'true' || settings.enableEarlySettlement === true);
+      } catch (e) {
+        console.error('Failed to load settings', e);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleEarlySettle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await salesApi.earlySettle(id!, earlySettleDiscount);
+      showToast('تمت التسوية بنجاح', 'success');
+      setShowEarlySettleModal(false);
+      loadSale();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || ar.common.error, 'error');
     }
   };
 
@@ -418,6 +445,11 @@ export default function SaleDetail() {
             <DangerButton size="sm" onClick={() => setShowVoidModal(true)}>
               {ar.sales.voidSale}
             </DangerButton>
+          )}
+          {sale.status === 'ACTIVE' && sale.saleType === 'INSTALLMENT' && enableEarlySettlement && (
+            <SecondaryButton size="sm" onClick={() => setShowEarlySettleModal(true)} className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200">
+              تسوية مبكرة
+            </SecondaryButton>
           )}
         </div>
       </div>
@@ -942,6 +974,42 @@ export default function SaleDetail() {
             </SecondaryButton>
             <PrimaryButton type="submit">
               حفظ التعديلات
+            </PrimaryButton>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={showEarlySettleModal} onClose={() => setShowEarlySettleModal(false)} title="تسوية مبكرة">
+        <form onSubmit={handleEarlySettle} className="space-y-5">
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="flex justify-between items-center text-sm mb-2">
+              <span className="text-gray-500">المبلغ المتبقي:</span>
+              <span className="font-bold text-gray-700">{formatCurrency(sale.remainingAmount)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm border-t border-gray-200 pt-2">
+              <span className="text-gray-900 font-bold">المطلوب سداده بعد الخصم:</span>
+              <span className="font-black text-lg text-emerald-600">
+                {formatCurrency(Math.max(0, Number(sale.remainingAmount) - Number(earlySettleDiscount)))}
+              </span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">مبلغ الخصم (إن وجد)</label>
+            <input
+              type="number"
+              value={earlySettleDiscount}
+              onChange={(e) => setEarlySettleDiscount(Number(e.target.value))}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2472]/20 focus:border-[#0A2472]"
+              min="0"
+              max={sale.remainingAmount}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <SecondaryButton type="button" onClick={() => setShowEarlySettleModal(false)}>
+              {ar.common.cancel}
+            </SecondaryButton>
+            <PrimaryButton type="submit">
+              تأكيد التسوية الكاش
             </PrimaryButton>
           </div>
         </form>

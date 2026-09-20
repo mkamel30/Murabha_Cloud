@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PageHeader } from '@/lib/Actions';
-import { Building2, Users, BookOpen, ChevronDown, ChevronUp, Database, SlidersHorizontal, Banknote, CreditCard, Plus, Trash2, Mail, GitMerge, Send, RefreshCw, Save } from 'lucide-react';
+import { Building2, Users, BookOpen, ChevronDown, ChevronUp, Database, SlidersHorizontal, Banknote, CreditCard, Plus, Trash2, Mail, GitMerge, Send, RefreshCw, Save, Percent, FileText, UserCheck } from 'lucide-react';
 import OracleMigrationWizard from '@/components/OracleMigrationWizard';
 import BranchesManagement from './BranchesManagement';
 import UsersManagement from './UsersManagement';
@@ -19,10 +19,19 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => canManageUsers ? 'general' : 'guide');
   const [activeHelpTab, setActiveHelpTab] = useState<string | null>(null);
   const [enableCashSales, setEnableCashSales] = useState<boolean>(false);
+  const [enableEarlySettlement, setEnableEarlySettlement] = useState<boolean>(true);
+  const [earlySettlementDiscountPercent, setEarlySettlementDiscountPercent] = useState<string>('50');
+  const [requireKycAttachments, setRequireKycAttachments] = useState<boolean>(false);
+  const [requireGuarantor, setRequireGuarantor] = useState<boolean>(false);
+  
   const [paymentPlaces, setPaymentPlaces] = useState<string[]>(['Damen', 'البريد', 'البنك']);
   const [newPlaceInput, setNewPlaceInput] = useState<string>('');
   const [loadingSettings, setLoadingSettings] = useState<boolean>(true);
+  
   const [savingCashSetting, setSavingCashSetting] = useState<boolean>(false);
+  const [savingEarlySettlement, setSavingEarlySettlement] = useState<boolean>(false);
+  const [savingKyc, setSavingKyc] = useState<boolean>(false);
+  const [savingGuarantor, setSavingGuarantor] = useState<boolean>(false);
   const [savingPlaces, setSavingPlaces] = useState<boolean>(false);
 
   // Email Settings State
@@ -71,6 +80,18 @@ export default function SettingsPage() {
         .then((data) => {
           if (data && typeof data.enableCashSales === 'boolean') {
             setEnableCashSales(data.enableCashSales);
+          }
+          if (data && typeof data.enableEarlySettlement === 'boolean') {
+            setEnableEarlySettlement(data.enableEarlySettlement);
+          }
+          if (data && data.earlySettlementDiscountPercent !== undefined) {
+            setEarlySettlementDiscountPercent(String(data.earlySettlementDiscountPercent));
+          }
+          if (data && typeof data.requireKycAttachments === 'boolean') {
+            setRequireKycAttachments(data.requireKycAttachments);
+          }
+          if (data && typeof data.requireGuarantor === 'boolean') {
+            setRequireGuarantor(data.requireGuarantor);
           }
           if (data && Array.isArray(data.paymentPlaces)) {
             setPaymentPlaces(data.paymentPlaces);
@@ -182,6 +203,59 @@ export default function SettingsPage() {
       showToast(err.response?.data?.error || 'فشل تحديث إعدادات النظام', 'error');
     } finally {
       setSavingCashSetting(false);
+    }
+  };
+
+  const handleToggleEarlySettlement = async () => {
+    const nextVal = !enableEarlySettlement;
+    setSavingEarlySettlement(true);
+    try {
+      await settingsApi.update('enableEarlySettlement', nextVal);
+      setEnableEarlySettlement(nextVal);
+      showToast(nextVal ? 'تم تفعيل ميزة السداد المبكر بنجاح' : 'تم تعطيل ميزة السداد المبكر', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'فشل تحديث الإعدادات', 'error');
+    } finally {
+      setSavingEarlySettlement(false);
+    }
+  };
+
+  const handleSaveDiscountPercent = async (val: string) => {
+    if (!val || isNaN(Number(val))) return;
+    try {
+      await settingsApi.update('earlySettlementDiscountPercent', val);
+      setEarlySettlementDiscountPercent(val);
+      showToast('تم حفظ نسبة الخصم للسداد المبكر بنجاح', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'فشل حفظ نسبة الخصم', 'error');
+    }
+  };
+
+  const handleToggleKycAttachments = async () => {
+    const nextVal = !requireKycAttachments;
+    setSavingKyc(true);
+    try {
+      await settingsApi.update('requireKycAttachments', nextVal);
+      setRequireKycAttachments(nextVal);
+      showToast(nextVal ? 'تم تفعيل إرفاق المستندات (KYC)' : 'تم تعطيل إرفاق المستندات', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'فشل تحديث الإعدادات', 'error');
+    } finally {
+      setSavingKyc(false);
+    }
+  };
+
+  const handleToggleGuarantor = async () => {
+    const nextVal = !requireGuarantor;
+    setSavingGuarantor(true);
+    try {
+      await settingsApi.update('requireGuarantor', nextVal);
+      setRequireGuarantor(nextVal);
+      showToast(nextVal ? 'تم تفعيل وجوب وجود ضامن' : 'تم تعطيل وجوب وجود ضامن', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'فشل تحديث الإعدادات', 'error');
+    } finally {
+      setSavingGuarantor(false);
     }
   };
 
@@ -395,6 +469,147 @@ export default function SettingsPage() {
                     <span
                       className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                         enableCashSales ? 'translate-x-0' : '-translate-x-5'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Feature: Early Settlement */}
+              <div className="p-5 rounded-xl border border-slate-200/70 bg-gradient-to-r from-slate-50 to-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Percent className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-slate-800">ميزة السداد المبكر</h3>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        enableEarlySettlement 
+                          ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}>
+                        {loadingSettings ? 'جاري التحميل...' : enableEarlySettlement ? 'مفعّل حالياً' : 'معطّل حالياً'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
+                      عند <strong>التفعيل</strong>، يُسمح للعميل بسداد باقي الأقساط دفعة واحدة مع تطبيق نسبة خصم على الأرباح المتبقية.
+                    </p>
+                    {enableEarlySettlement && (
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200/50">
+                        <span className="text-xs font-bold text-slate-700">نسبة خصم السداد المبكر (%):</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={earlySettlementDiscountPercent}
+                          onChange={(e) => setEarlySettlementDiscountPercent(e.target.value)}
+                          onBlur={(e) => handleSaveDiscountPercent(e.target.value)}
+                          className="w-16 px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          disabled={loadingSettings}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 self-end md:self-center">
+                  <button
+                    type="button"
+                    disabled={loadingSettings || savingEarlySettlement}
+                    onClick={handleToggleEarlySettlement}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                      enableEarlySettlement ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                    title={enableEarlySettlement ? 'انقر للتعطيل' : 'انقر للتفعيل'}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        enableEarlySettlement ? 'translate-x-0' : '-translate-x-5'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Feature: KYC Attachments Toggle */}
+              <div className="p-5 rounded-xl border border-slate-200/70 bg-gradient-to-r from-slate-50 to-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-slate-800">إلزامية إرفاق المستندات (KYC)</h3>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        requireKycAttachments 
+                          ? 'bg-purple-100 text-purple-800 border border-purple-200' 
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}>
+                        {loadingSettings ? 'جاري التحميل...' : requireKycAttachments ? 'مفعّل حالياً' : 'معطّل حالياً'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
+                      عند <strong>التفعيل</strong>، يجب رفع صورة البطاقة الشخصية للعميل وإيصال المرافق وغيرها من المستندات لإتمام تسجيل الطلب.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 self-end md:self-center">
+                  <button
+                    type="button"
+                    disabled={loadingSettings || savingKyc}
+                    onClick={handleToggleKycAttachments}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                      requireKycAttachments ? 'bg-purple-600' : 'bg-slate-300'
+                    }`}
+                    title={requireKycAttachments ? 'انقر للتعطيل' : 'انقر للتفعيل'}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        requireKycAttachments ? 'translate-x-0' : '-translate-x-5'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Feature: Require Guarantor Toggle */}
+              <div className="p-5 rounded-xl border border-slate-200/70 bg-gradient-to-r from-slate-50 to-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <UserCheck className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-slate-800">وجوب وجود ضامن</h3>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        requireGuarantor 
+                          ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' 
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}>
+                        {loadingSettings ? 'جاري التحميل...' : requireGuarantor ? 'مفعّل حالياً' : 'معطّل حالياً'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
+                      عند <strong>التفعيل</strong>، يشترط النظام تسجيل بيانات ضامن واحد على الأقل للموافقة على طلب التقسيط.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 self-end md:self-center">
+                  <button
+                    type="button"
+                    disabled={loadingSettings || savingGuarantor}
+                    onClick={handleToggleGuarantor}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                      requireGuarantor ? 'bg-indigo-600' : 'bg-slate-300'
+                    }`}
+                    title={requireGuarantor ? 'انقر للتعطيل' : 'انقر للتفعيل'}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        requireGuarantor ? 'translate-x-0' : '-translate-x-5'
                       }`}
                     />
                   </button>

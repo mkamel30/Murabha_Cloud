@@ -7,6 +7,8 @@ export interface Customer {
   address?: string;
   notes?: string;
   department?: string;
+  branchId?: string;
+  walletBalance?: number;
   createdAt: string;
   updatedAt: string;
   sales?: MachineSale[];

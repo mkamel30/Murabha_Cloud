@@ -209,6 +209,7 @@ export const salesApi = {
   update: (id: string, data: unknown) => api.put(`/sales/${id}`, data).then((r) => r.data),
   delete: (id: string) => api.delete(`/sales/${id}`).then((r) => r.data),
   void: (id: string, reason: string) => api.post(`/sales/${id}/void`, { reason }).then((r) => r.data),
+  earlySettle: (id: string, discountAmount: number) => api.post(`/sales/${id}/early-settle`, { discountAmount }).then((r) => r.data),
   pay: (saleId: string, data: unknown) => api.post(`/sales/${saleId}/pay`, data).then((r) => r.data),
   previewPayment: (id: string, amount: number, installmentIds?: string[]) =>
     api.post(`/sales/${id}/preview-payment`, { amount, installmentIds }).then((r) => r.data),
