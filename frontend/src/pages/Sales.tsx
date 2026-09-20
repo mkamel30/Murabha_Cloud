@@ -39,7 +39,6 @@ export default function Sales() {
     saleType: 'INSTALLMENT' as 'CASH' | 'INSTALLMENT',
     totalPrice: 0,
     downPayment: 0,
-    actualPaidAmount: 0,
     installmentAmount: 0,
     paymentPlace: 'Damen',
     downPaymentReceipt: '',
@@ -117,7 +116,7 @@ export default function Sales() {
           return;
         }
       } else {
-        const hasPayment = formData.actualPaidAmount > 0 || formData.downPayment > 0;
+        const hasPayment = formData.downPayment > 0;
         if (hasPayment) {
           if (!formData.downPaymentReceipt || !formData.downPaymentReceipt.trim()) {
             setError('يرجى إدخال رقم إيصال سداد الدفعة الأولى طالما تم تسجيل مبلغ مدفوع');
@@ -145,12 +144,12 @@ export default function Sales() {
 
   // Auto-calculate logic for display (User can still override)
   useEffect(() => {
-    if (formData.saleType === 'INSTALLMENT' && formData.downPayment === 0 && formData.totalPrice > 0 && formData.actualPaidAmount === 0) {
+    if (formData.saleType === 'INSTALLMENT' && formData.downPayment === 0 && formData.totalPrice > 0) {
       setFormData(prev => ({ ...prev, downPayment: 3000 }));
     }
   }, [formData.saleType, formData.totalPrice]);
 
-  const { selectedBranchId } = useAuth();
+  const { selectedBranchId, user } = useAuth();
 
   useEffect(() => {
     loadData();
@@ -208,7 +207,6 @@ export default function Sales() {
       await salesApi.create({
         ...formData,
         downPayment: isCash ? formData.totalPrice : formData.downPayment,
-        actualPaidAmount: isCash ? formData.totalPrice : formData.actualPaidAmount,
         months: isCash ? undefined : months,
       });
       showToast(ar.common.success, 'success');
@@ -219,7 +217,6 @@ export default function Sales() {
         saleType: 'INSTALLMENT',
         totalPrice: 0,
         downPayment: 0,
-        actualPaidAmount: 0,
         installmentAmount: 0,
         paymentPlace: 'Damen',
         downPaymentReceipt: '',
@@ -254,14 +251,18 @@ export default function Sales() {
     return <LoadingScreen message={ar.common.loading} />;
   }
 
+  const canAddSale = user?.role === 'SUPER_ADMIN' || user?.role === 'HQ_MANAGER';
+
   return (
     <div className="space-y-4">
       <PageHeader 
         title={ar.sales.title}
         actions={
-          <PrimaryButton onClick={() => setShowModal(true)}>
-            {ar.sales.addNew}
-          </PrimaryButton>
+          canAddSale ? (
+            <PrimaryButton onClick={() => setShowModal(true)}>
+              {ar.sales.addNew}
+            </PrimaryButton>
+          ) : undefined
         }
       />
 
@@ -560,21 +561,7 @@ export default function Sales() {
                     <div className="flex justify-between items-center">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">بيانات الدفعة الأولى</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">المبلغ المدفوع فعلياً الآن</label>
-                        <input
-                          type="number"
-                          value={formData.actualPaidAmount || ''}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            setFormData(prev => ({ ...prev, actualPaidAmount: val }));
-                          }}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm font-bold text-[#0A2472]"
-                          placeholder="مثلاً 3000"
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">{ar.sales.downPayment} (التعاقدي)</label>
                         <input
@@ -603,7 +590,7 @@ export default function Sales() {
                       </div>
                       <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">
-                          رقم إيصال الدفعة الأولى {(formData.actualPaidAmount > 0 || formData.downPayment > 0) && <span className="text-red-500">*</span>}
+                          رقم إيصال الدفعة الأولى {formData.downPayment > 0 && <span className="text-red-500">*</span>}
                         </label>
                         <input
                           type="text"
@@ -618,7 +605,7 @@ export default function Sales() {
                           className={`w-full px-3 py-2 bg-white border rounded-md text-sm ${
                             receiptValidation.error ? 'border-red-400 bg-red-50/20' : 'border-gray-200'
                           }`}
-                          placeholder={(formData.actualPaidAmount > 0 || formData.downPayment > 0) ? "أدخل رقم الإيصال (إجباري) *" : "اختياري (لا يوجد سداد)"}
+                          placeholder={formData.downPayment > 0 ? "أدخل رقم الإيصال (إجباري) *" : "اختياري (لا يوجد سداد)"}
                         />
                         {receiptValidation.error && (
                           <p className="text-xs text-red-600 font-bold mt-1">⚠️ {receiptValidation.error}</p>
@@ -626,7 +613,7 @@ export default function Sales() {
                       </div>
                     </div>
 
-                    {(formData.actualPaidAmount > 0 || formData.downPayment > 0) && (
+                    {formData.downPayment > 0 && (
                       <div className="pt-2 border-t border-slate-200/70">
                         <label className="block text-sm font-bold text-gray-700 mb-2">مكان وقناة سداد الدفعة الأولى *</label>
                         <PaymentPlaceSelect
@@ -693,7 +680,7 @@ export default function Sales() {
                   <div className="font-bold text-[#0A2472]">{formatCurrency(formData.totalPrice)}</div>
                   <div className="text-gray-500">المدفوع:</div>
                   <div className="font-bold text-green-600">
-                    {formatCurrency(formData.saleType === 'CASH' ? formData.totalPrice : formData.actualPaidAmount)}
+                    {formatCurrency(formData.saleType === 'CASH' ? formData.totalPrice : formData.downPayment)}
                   </div>
                   {formData.saleType === 'INSTALLMENT' && (
                     <>
@@ -701,7 +688,7 @@ export default function Sales() {
                       <div className="font-bold">{formData.months} شهر</div>
                     </>
                   )}
-                  {(formData.saleType === 'CASH' || formData.actualPaidAmount > 0 || formData.downPayment > 0) && (
+                  {(formData.saleType === 'CASH' || formData.downPayment > 0) && (
                     <>
                       <div className="text-gray-500">رقم إيصال السداد:</div>
                       <div className="font-mono font-bold text-[#0A2472]">{formData.downPaymentReceipt || '-'}</div>

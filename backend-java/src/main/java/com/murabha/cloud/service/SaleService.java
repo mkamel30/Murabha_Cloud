@@ -34,6 +34,7 @@ public class SaleService {
     private final PaymentRepository paymentRepository;
     private final InstallmentRepository installmentRepository;
     private final CustomerRepository customerRepository;
+    private final com.murabha.cloud.repository.InstallmentRequestRepository installmentRequestRepository;
     private final ReceiptSequenceService receiptSequenceService;
     private final AuditService auditService;
     private final com.murabha.cloud.repository.SystemSettingRepository systemSettingRepository;
@@ -75,15 +76,34 @@ public class SaleService {
             return Map.of("available", true);
         }
         String cleanSerial = serial.trim().toUpperCase();
+        
+        // 1. Check active sales
         List<MachineSale> activeSales = saleRepository.findByMachineSerialIgnoreCaseAndStatusNot(cleanSerial, "VOIDED");
         if (!activeSales.isEmpty()) {
             MachineSale existing = activeSales.get(0);
             return Map.of(
                     "available", false,
-                    "message", "رقم الماكينة مستخدم بالفعل في عقد نشط رقم: " + existing.getReceiptNumber(),
+                    "message", "رقم الماكينة مستخدم بالفعل في عقد بيع: " + existing.getReceiptNumber(),
                     "existingSale", Map.of("id", existing.getId(), "receiptNumber", existing.getReceiptNumber())
             );
         }
+        
+        // 2. Check pending/approved installment requests
+        List<com.murabha.cloud.entity.InstallmentRequest> pendingRequests = 
+            installmentRequestRepository.findByMachineSerialIgnoreCaseAndStatusIn(
+                cleanSerial, 
+                List.of("PENDING_SUPERVISOR", "PENDING_MANAGER", "APPROVED")
+            );
+            
+        if (!pendingRequests.isEmpty()) {
+            com.murabha.cloud.entity.InstallmentRequest existingReq = pendingRequests.get(0);
+            return Map.of(
+                    "available", false,
+                    "message", "رقم الماكينة محجوز في طلب تقسيط معلق برقم: " + existingReq.getRequestNumber(),
+                    "existingRequest", Map.of("id", existingReq.getId(), "requestNumber", existingReq.getRequestNumber())
+            );
+        }
+
         return Map.of("available", true);
     }
 

@@ -16,6 +16,8 @@ import java.util.UUID;
 public interface InstallmentRequestRepository extends JpaRepository<InstallmentRequest, UUID>, JpaSpecificationExecutor<InstallmentRequest> {
 
     Optional<InstallmentRequest> findByRequestNumber(String requestNumber);
+    
+    List<InstallmentRequest> findByMachineSerialIgnoreCaseAndStatusIn(String machineSerial, List<String> statuses);
 
     long countByBranchIdAndStatus(UUID branchId, String status);
 
