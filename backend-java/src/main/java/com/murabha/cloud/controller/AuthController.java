@@ -47,7 +47,15 @@ public class AuthController {
     private final AuditService auditService;
 
     // Rate Limiting per IP for Login (30 requests per 15 mins)
-    private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
+    // Capped at 1000 IPs to prevent memory leaks, removing oldest when limit reached
+    private final Map<String, Bucket> loginBuckets = java.util.Collections.synchronizedMap(
+            new java.util.LinkedHashMap<String, Bucket>(1000, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Bucket> eldest) {
+                    return size() > 1000;
+                }
+            }
+    );
 
     private Bucket createNewBucket() {
         Bandwidth limit = Bandwidth.classic(30, Refill.greedy(30, Duration.ofMinutes(15)));

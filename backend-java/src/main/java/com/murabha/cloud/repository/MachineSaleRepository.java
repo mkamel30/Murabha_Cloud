@@ -91,4 +91,7 @@ public interface MachineSaleRepository extends JpaRepository<MachineSale, UUID>,
         };
         return findAll(spec);
     }
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(s) FROM MachineSale s WHERE (:branchId IS NULL OR s.branchId = :branchId) AND s.status = :status")
+    long countByStatus(@org.springframework.data.repository.query.Param("branchId") UUID branchId, @org.springframework.data.repository.query.Param("status") String status);
 }

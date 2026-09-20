@@ -280,6 +280,20 @@ public class ExcelImportExportService {
                     continue;
                 }
 
+                if (role == UserRole.SUPER_ADMIN) {
+                    org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    boolean isSuperAdmin = false;
+                    if (auth != null && auth.getPrincipal() instanceof com.murabha.cloud.security.UserPrincipal p) {
+                        if (p.getRole() == UserRole.SUPER_ADMIN) {
+                            isSuperAdmin = true;
+                        }
+                    }
+                    if (!isSuperAdmin) {
+                        result.getErrors().add("السطر " + (r + 1) + ": لا تملك صلاحية إنشاء حساب Super Admin");
+                        continue;
+                    }
+                }
+
                 branchCode = branchCode.trim().toUpperCase();
                 Branch branch = branchMap.get(branchCode);
                 if (branch == null) {

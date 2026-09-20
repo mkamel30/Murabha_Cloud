@@ -20,21 +20,17 @@ public class BackupController {
 
     @GetMapping("/export")
     public ResponseEntity<byte[]> exportBackup() {
-        byte[] backupData = "-- Murabha Cloud Backup Snapshot\n".getBytes(StandardCharsets.UTF_8);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=murabha-backup.sql")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(backupData);
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_IMPLEMENTED).build();
     }
 
     @PostMapping("/import")
     public ResponseEntity<Map<String, Object>> importBackup(@RequestParam("file") MultipartFile file) {
-        return ResponseEntity.ok(Map.of("success", true, "message", "تم استعادة النسخة الاحتياطية بنجاح"));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_IMPLEMENTED).body(Map.of("error", "Not implemented"));
     }
 
     @PostMapping("/auto")
     public ResponseEntity<Map<String, Object>> autoBackup() {
-        return ResponseEntity.ok(Map.of("success", true, "message", "تم إنشاء النسخة التلقائية بنجاح"));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_IMPLEMENTED).body(Map.of("error", "Not implemented"));
     }
 
     @GetMapping("/list")

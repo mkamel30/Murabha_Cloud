@@ -34,14 +34,11 @@ public class OracleMigrationController {
 
     @PostMapping("/provision-schema")
     public ResponseEntity<Map<String, Object>> provisionSchema(@RequestBody Map<String, Object> cfg) {
-        return ResponseEntity.ok(Map.of("success", true, "message", "تم تهيئة جداول أوراكل بنجاح"));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_IMPLEMENTED).body(Map.of("error", "Not implemented"));
     }
 
     @PostMapping("/migrate-data")
     public ResponseEntity<Map<String, Object>> migrateData(@RequestBody Map<String, Object> cfg) {
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "تم ترحيل البيانات وتدقيق الأرصدة بنجاح بنسبة 100%"
-        ));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_IMPLEMENTED).body(Map.of("error", "Not implemented"));
     }
 }

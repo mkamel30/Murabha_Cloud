@@ -44,4 +44,17 @@ public interface InstallmentRepository extends JpaRepository<Installment, UUID>,
         };
         return findAll(spec);
     }
+
+    @org.springframework.data.jpa.repository.Query("SELECT SUM(i.amount - COALESCE(i.paidAmount, 0)) FROM Installment i WHERE (:branchId IS NULL OR i.branchId = :branchId) AND i.dueDate < :today AND (i.isPaid = false OR i.isPaid IS NULL) AND (i.isWaived = false OR i.isWaived IS NULL)")
+    java.math.BigDecimal sumOverdueInstallments(@org.springframework.data.repository.query.Param("branchId") UUID branchId, @org.springframework.data.repository.query.Param("today") java.time.LocalDate today);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(i) FROM Installment i WHERE (:branchId IS NULL OR i.branchId = :branchId) AND i.dueDate < :today AND (i.isPaid = false OR i.isPaid IS NULL) AND (i.isWaived = false OR i.isWaived IS NULL)")
+    long countOverdueInstallments(@org.springframework.data.repository.query.Param("branchId") UUID branchId, @org.springframework.data.repository.query.Param("today") java.time.LocalDate today);
+
+    @org.springframework.data.jpa.repository.Query("SELECT SUM(i.amount - COALESCE(i.paidAmount, 0)) FROM Installment i WHERE (:branchId IS NULL OR i.branchId = :branchId) AND (i.isPaid = false OR i.isPaid IS NULL) AND (i.isWaived = false OR i.isWaived IS NULL) AND (cast(:startDate as date) IS NULL OR i.dueDate >= :startDate) AND (cast(:endDate as date) IS NULL OR i.dueDate <= :endDate)")
+    java.math.BigDecimal sumInstallmentsWithFilters(@org.springframework.data.repository.query.Param("branchId") UUID branchId, @org.springframework.data.repository.query.Param("startDate") java.time.LocalDate startDate, @org.springframework.data.repository.query.Param("endDate") java.time.LocalDate endDate);
+
+    @org.springframework.data.jpa.repository.Query("SELECT i FROM Installment i WHERE (:branchId IS NULL OR i.branchId = :branchId) AND (i.isPaid = false OR i.isPaid IS NULL) AND (i.isWaived = false OR i.isWaived IS NULL) AND (cast(:startDate as date) IS NULL OR i.dueDate >= :startDate) AND (cast(:endDate as date) IS NULL OR i.dueDate <= :endDate) ORDER BY i.dueDate ASC")
+    org.springframework.data.domain.Page<Installment> findUpcomingInstallments(@org.springframework.data.repository.query.Param("branchId") UUID branchId, @org.springframework.data.repository.query.Param("startDate") java.time.LocalDate startDate, @org.springframework.data.repository.query.Param("endDate") java.time.LocalDate endDate, org.springframework.data.domain.Pageable pageable);
+
 }

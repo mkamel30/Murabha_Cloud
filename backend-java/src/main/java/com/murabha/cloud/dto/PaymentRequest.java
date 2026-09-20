@@ -17,6 +17,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class PaymentRequest {
     @NotNull(message = "المبلغ مطلوب")
+    @jakarta.validation.constraints.DecimalMin(value = "0.0", inclusive = false, message = "المبلغ يجب أن يكون أكبر من الصفر")
     private BigDecimal amount;
     private String paymentType;
     private String paymentPlace;

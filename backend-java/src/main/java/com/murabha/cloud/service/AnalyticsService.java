@@ -27,25 +27,33 @@ public class AnalyticsService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getDashboardData(UUID branchId) {
-        List<MachineSale> sales = saleRepository.findSalesForReport(branchId, null, null, null);
-        List<Payment> payments = paymentRepository.findPaymentsWithFilters(branchId, null, null, null);
-        List<Installment> overdue = installmentRepository.findOverdueInstallments(branchId, LocalDate.now());
-
-        BigDecimal totalSales = sales.stream().map(MachineSale::getTotalPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalCollected = payments.stream().map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalRemaining = sales.stream().map(MachineSale::getRemainingAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Payment channels breakdown
-        Map<String, BigDecimal> channelsMap = new HashMap<>();
-        for (Payment p : payments) {
-            String place = p.getPaymentPlace() != null ? p.getPaymentPlace() : "Damen";
-            channelsMap.put(place, channelsMap.getOrDefault(place, BigDecimal.ZERO).add(p.getAmount()));
+        List<Object[]> aggList = saleRepository.getSalesAggregateTotals(branchId);
+        BigDecimal totalCollected = BigDecimal.ZERO;
+        BigDecimal totalRemaining = BigDecimal.ZERO;
+        if (aggList != null && !aggList.isEmpty()) {
+            Object[] row = aggList.get(0);
+            totalCollected = row[0] != null ? (BigDecimal) row[0] : BigDecimal.ZERO;
+            totalRemaining = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
         }
-        List<Map<String, Object>> paymentChannels = channelsMap.entrySet().stream()
-                .map(e -> Map.of("channel", (Object) e.getKey(), "amount", e.getValue()))
-                .toList();
+        BigDecimal totalSales = totalCollected.add(totalRemaining);
 
-        // Aging delinquency risk buckets: 1-30, 31-60, >60 days
+        // Payment channels breakdown (using a lighter query to get just payment places and amounts)
+        // Since we don't have a direct query for grouping, we can fetch all but only select the needed fields.
+        // Actually, for a quick fix, let's just create a custom query in PaymentRepository or avoid the huge object load.
+        // Let's use the DB to sum by payment place.
+        List<Object[]> channels = paymentRepository.sumByPaymentPlace(branchId);
+        List<Map<String, Object>> paymentChannels = new ArrayList<>();
+        if (channels != null) {
+            for (Object[] row : channels) {
+                String place = row[0] != null ? (String) row[0] : "Damen";
+                BigDecimal amt = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
+                paymentChannels.add(Map.of("channel", place, "amount", amt));
+            }
+        }
+
+        // Aging delinquency risk buckets
+        // Overdue list is usually much smaller than all sales/payments, so loading it is less risky, but let's just get it.
+        List<Installment> overdue = installmentRepository.findOverdueInstallments(branchId, LocalDate.now());
         BigDecimal bucket1 = BigDecimal.ZERO;
         BigDecimal bucket2 = BigDecimal.ZERO;
         BigDecimal bucket3 = BigDecimal.ZERO;
@@ -69,12 +77,15 @@ public class AnalyticsService {
                 Map.of("bucket", "أكثر من 60 يوم", "amount", bucket3)
         );
 
+        long activeContracts = saleRepository.countByStatus(branchId, "ACTIVE");
+        long completedContracts = saleRepository.countByStatus(branchId, "COMPLETED");
+
         Map<String, Object> kpi = Map.of(
                 "totalSales", totalSales,
                 "totalCollected", totalCollected,
                 "totalRemaining", totalRemaining,
-                "activeContracts", sales.stream().filter(s -> "ACTIVE".equalsIgnoreCase(s.getStatus())).count(),
-                "completedContracts", sales.stream().filter(s -> "COMPLETED".equalsIgnoreCase(s.getStatus())).count()
+                "activeContracts", activeContracts,
+                "completedContracts", completedContracts
         );
 
         return Map.of(

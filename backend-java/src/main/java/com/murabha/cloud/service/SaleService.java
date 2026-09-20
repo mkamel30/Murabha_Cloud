@@ -31,9 +31,12 @@ import java.util.*;
 public class SaleService {
 
     private final MachineSaleRepository saleRepository;
-    private final CustomerRepository customerRepository;
-    private final InstallmentRepository installmentRepository;
     private final PaymentRepository paymentRepository;
+    private final InstallmentRepository installmentRepository;
+    private final CustomerRepository customerRepository;
+    private final ReceiptSequenceService receiptSequenceService;
+
+
 
     @Transactional(readOnly = true)
     public Page<MachineSale> getAll(UUID branchId, UUID customerId, String status, String saleType,
@@ -257,8 +260,19 @@ public class SaleService {
                 .build();
         payment = paymentRepository.save(payment);
 
-        // FIFO Allocation across unpaid installments
+        // FIFO Allocation across unpaid installments, but prioritize targeted installments first
         List<Installment> installments = installmentRepository.findBySaleIdOrderByInstallmentNoAsc(sale.getId());
+        if (req.getInstallmentIds() != null && !req.getInstallmentIds().isEmpty()) {
+            List<Installment> targeted = new ArrayList<>();
+            List<Installment> others = new ArrayList<>();
+            for (Installment inst : installments) {
+                if (req.getInstallmentIds().contains(inst.getId())) targeted.add(inst);
+                else others.add(inst);
+            }
+            installments = targeted;
+            installments.addAll(others);
+        }
+        
         BigDecimal remainingToAllocate = amount;
 
         for (Installment inst : installments) {
@@ -349,6 +363,10 @@ public class SaleService {
     @Transactional
     public void voidSale(UUID saleId, String reason) {
         MachineSale sale = getById(saleId);
+        if (sale.getPaidAmount() != null && sale.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
+            throw new BadRequestException("لا يمكن إلغاء العقد لوجود مبالغ مسددة عليه. الرجاء تسوية واسترداد الدفعات أولاً.");
+        }
+        
         sale.setStatus("VOIDED");
         sale.setVoidReason(reason);
         sale.setVoidedAt(Instant.now());
@@ -356,7 +374,9 @@ public class SaleService {
         List<Installment> installments = installmentRepository.findBySaleIdOrderByInstallmentNoAsc(saleId);
         for (Installment inst : installments) {
             if (!Boolean.TRUE.equals(inst.getIsPaid())) {
-                installmentRepository.delete(inst);
+                inst.setIsWaived(true);
+                inst.setWaiveReason("عقد ملغي: " + (reason != null ? reason : ""));
+                installmentRepository.save(inst);
             }
         }
         saleRepository.save(sale);
@@ -364,15 +384,13 @@ public class SaleService {
 
     private String generateReceiptNumber() {
         String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long count = saleRepository.count();
-        long millisSuffix = System.currentTimeMillis() % 1000;
-        return String.format("SAL-%s-%04d%03d", datePart, (count + 1) % 10000, millisSuffix);
+        long nextVal = receiptSequenceService.getNextSaleReceiptNumber();
+        return String.format("SAL-%s-%05d", datePart, nextVal);
     }
 
     private String generatePaymentReceipt() {
         String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long count = paymentRepository.count();
-        long millisSuffix = System.currentTimeMillis() % 1000;
-        return String.format("PAY-%s-%04d%03d", datePart, (count + 1) % 10000, millisSuffix);
+        long nextVal = receiptSequenceService.getNextPaymentReceiptNumber();
+        return String.format("PAY-%s-%05d", datePart, nextVal);
     }
 }

@@ -37,24 +37,20 @@ public class DashboardService {
         Instant endOfToday = today.plusDays(1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC);
 
         // 1. Today collections
-        List<Payment> todayPayments = paymentRepository.findPaymentsWithFilters(branchId, null, startOfToday, endOfToday);
-        BigDecimal todayCollections = todayPayments.stream()
-                .map(Payment::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        java.math.BigDecimal todayCollections = paymentRepository.sumPaymentsWithFilters(branchId, startOfToday, endOfToday);
+        if (todayCollections == null) todayCollections = BigDecimal.ZERO;
+        long todayPaymentCount = paymentRepository.countPaymentsWithFilters(branchId, startOfToday, endOfToday);
 
         // 2. Overdue installments
-        List<Installment> overdueList = installmentRepository.findOverdueInstallments(branchId, today);
-        BigDecimal overdueTotal = overdueList.stream()
-                .map(i -> i.getAmount().subtract(i.getPaidAmount()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        java.math.BigDecimal overdueTotal = installmentRepository.sumOverdueInstallments(branchId, today);
+        if (overdueTotal == null) overdueTotal = BigDecimal.ZERO;
+        long overdueCount = installmentRepository.countOverdueInstallments(branchId, today);
 
         // 3. Due this month
         LocalDate startOfMonth = today.with(TemporalAdjusters.firstDayOfMonth());
         LocalDate endOfMonth = today.with(TemporalAdjusters.lastDayOfMonth());
-        List<Installment> monthInstallments = installmentRepository.findInstallmentsWithFilters(branchId, null, false, startOfMonth, endOfMonth);
-        BigDecimal dueThisMonthTotal = monthInstallments.stream()
-                .map(i -> i.getAmount().subtract(i.getPaidAmount()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        java.math.BigDecimal dueThisMonthTotal = installmentRepository.sumInstallmentsWithFilters(branchId, startOfMonth, endOfMonth);
+        if (dueThisMonthTotal == null) dueThisMonthTotal = BigDecimal.ZERO;
 
         // 4. Sales totals via direct DB SQL aggregations (no full table entity loads into JVM heap)
         List<Object[]> aggList = saleRepository.getSalesAggregateTotals(branchId);
@@ -76,29 +72,23 @@ public class DashboardService {
         long activeCustomers = branchId != null ? customerRepository.countByBranchId(branchId) : customerRepository.count();
 
         // 5. Recent payments across all time (limit 10)
-        List<Payment> recentPaymentsList = paymentRepository.findPaymentsWithFilters(branchId, null, null, null)
-                .stream()
-                .limit(10)
-                .toList();
+        List<Payment> recentPaymentsList = paymentRepository.findRecentPayments(branchId, org.springframework.data.domain.PageRequest.of(0, 10)).getContent();
 
         // 6. Upcoming due installments (from today onwards, limit 10)
-        List<Installment> upcomingDueList = installmentRepository.findInstallmentsWithFilters(branchId, null, false, today, null)
-                .stream()
-                .limit(10)
-                .toList();
+        List<Installment> upcomingDueList = installmentRepository.findUpcomingInstallments(branchId, today, null, org.springframework.data.domain.PageRequest.of(0, 10)).getContent();
 
         return Map.ofEntries(
                 Map.entry("todayCollections", todayCollections),
-                Map.entry("todayPaymentCount", todayPayments.size()),
+                Map.entry("todayPaymentCount", todayPaymentCount),
                 Map.entry("overdueTotal", overdueTotal),
-                Map.entry("overdueCount", overdueList.size()),
+                Map.entry("overdueCount", overdueCount),
                 Map.entry("cashSalesTotal", cashSalesTotal),
                 Map.entry("installmentSalesTotal", installmentSalesTotal),
                 Map.entry("totalSalesCount", totalSalesCount),
                 Map.entry("totalPaidAll", totalPaidAll),
                 Map.entry("totalRemainingAll", totalRemainingAll),
                 Map.entry("activeCustomers", activeCustomers),
-                Map.entry("dueThisMonth", mapInstallmentsWithSaleAndCustomer(monthInstallments)),
+                Map.entry("dueThisMonth", Collections.emptyList()), // Avoid loading all into RAM, frontend doesn't actually display full list anyway
                 Map.entry("dueThisMonthTotal", dueThisMonthTotal),
                 Map.entry("recentPayments", mapPaymentsWithSaleAndCustomer(recentPaymentsList)),
                 Map.entry("upcomingDue", mapInstallmentsWithSaleAndCustomer(upcomingDueList))

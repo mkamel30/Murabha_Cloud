@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -16,6 +16,9 @@ const ToastContext = createContext<ToastContextType | null>(null);
 
 let toastId = 0;
 
+export let globalToast: ((message: string, type?: ToastType) => void) | null = null;
+
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -26,6 +29,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);
   }, []);
+
+
+  useEffect(() => {
+    globalToast = showToast;
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

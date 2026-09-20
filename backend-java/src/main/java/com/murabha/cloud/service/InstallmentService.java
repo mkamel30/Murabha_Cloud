@@ -51,6 +51,8 @@ public class InstallmentService {
             BigDecimal remainingOnInstallment = installment.getAmount().subtract(installment.getPaidAmount());
             req.setAmount(remainingOnInstallment);
         }
+        
+        req.setInstallmentIds(java.util.List.of(installmentId));
         return saleService.pay(installment.getSaleId(), req, createdByUserId);
     }
 

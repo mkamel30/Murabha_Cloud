@@ -88,6 +88,16 @@ api.interceptors.response.use(
         isRefreshing = false;
       }
     }
+    
+    // Global error handler for generic API errors
+    if (error.response?.data?.message || error.message) {
+      import('@/lib/toast').then((mod) => {
+        if (mod.globalToast) {
+          mod.globalToast(error.response?.data?.message || error.message, 'error');
+        }
+      });
+    }
+
     return Promise.reject(error);
   }
 );
