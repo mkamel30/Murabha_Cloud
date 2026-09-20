@@ -113,6 +113,22 @@ public class SaleController {
         return ResponseEntity.ok(saleService.previewPayment(id, amount, null));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER')")
+    public ResponseEntity<MachineSale> update(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> updates) {
+        return ResponseEntity.ok(saleService.update(id, updates));
+    }
+
+    @PostMapping("/{id}/full-recalculate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER')")
+    public ResponseEntity<MachineSale> fullRecalculate(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(saleService.fullRecalculate(id, body));
+    }
+
     @PostMapping("/{id}/void")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER')")
     public ResponseEntity<Map<String, Object>> voidSale(

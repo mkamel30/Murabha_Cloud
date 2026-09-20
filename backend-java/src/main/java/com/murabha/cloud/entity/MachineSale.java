@@ -116,6 +116,10 @@ public class MachineSale {
     @OrderBy("paidAt ASC")
     private List<Payment> payments = new ArrayList<>();
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

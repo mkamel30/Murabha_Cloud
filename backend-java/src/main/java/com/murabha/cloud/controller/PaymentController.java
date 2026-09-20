@@ -39,4 +39,14 @@ public class PaymentController {
     public ResponseEntity<Payment> update(@PathVariable UUID id, @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(paymentService.update(id, updates));
     }
+
+    @PostMapping("/{id}/void")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER')")
+    public ResponseEntity<Map<String, Object>> voidPayment(
+            @PathVariable UUID id,
+            @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        paymentService.voidPayment(id, reason);
+        return ResponseEntity.ok(Map.of("message", "تم إلغاء الدفعة بنجاح"));
+    }
 }

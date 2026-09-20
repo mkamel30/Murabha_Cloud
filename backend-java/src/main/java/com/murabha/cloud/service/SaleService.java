@@ -35,6 +35,7 @@ public class SaleService {
     private final InstallmentRepository installmentRepository;
     private final CustomerRepository customerRepository;
     private final ReceiptSequenceService receiptSequenceService;
+    private final AuditService auditService;
 
 
 
@@ -220,7 +221,9 @@ public class SaleService {
             }
         }
 
-        return saleRepository.save(sale);
+        sale = saleRepository.save(sale);
+        auditService.log("CREATE_SALE", "MachineSale", sale.getId().toString(), "تم إنشاء عقد بيع جديد للعميل: " + customer.getName(), null);
+        return sale;
     }
 
     @Transactional
@@ -311,6 +314,7 @@ public class SaleService {
             sale.setRemainingAmount(BigDecimal.ZERO);
         }
         saleRepository.save(sale);
+        auditService.log("PAY_INSTALLMENT", "MachineSale", sale.getId().toString(), "تم سداد مبلغ: " + amount + " بموجب إيصال: " + receiptNumber, null);
 
         return Map.of("receiptNumber", receiptNumber, "amount", amount);
     }
@@ -361,6 +365,109 @@ public class SaleService {
     }
 
     @Transactional
+    public MachineSale update(UUID id, Map<String, Object> updates) {
+        MachineSale sale = getById(id);
+        if ("VOIDED".equalsIgnoreCase(sale.getStatus())) {
+            throw new BadRequestException("لا يمكن تعديل عقد ملغي");
+        }
+        if (updates.containsKey("notes")) {
+            sale.setNotes((String) updates.get("notes"));
+        }
+        if (updates.containsKey("paymentPlace")) {
+            sale.setPaymentPlace((String) updates.get("paymentPlace"));
+        }
+        if (updates.containsKey("machineSerial")) {
+            String newSerial = ((String) updates.get("machineSerial")).trim().toUpperCase();
+            if (!newSerial.equals(sale.getMachineSerial())) {
+                Map<String, Object> check = checkSerial(newSerial);
+                if (Boolean.FALSE.equals(check.get("available"))) {
+                    throw new BadRequestException((String) check.get("message"));
+                }
+                sale.setMachineSerial(newSerial);
+            }
+        }
+        sale = saleRepository.save(sale);
+        auditService.log("UPDATE_SALE", "MachineSale", sale.getId().toString(), "تم تعديل بيانات العقد", null);
+        return sale;
+    }
+
+    @Transactional
+    public MachineSale fullRecalculate(UUID id, Map<String, Object> body) {
+        MachineSale sale = getById(id);
+        if ("VOIDED".equalsIgnoreCase(sale.getStatus())) {
+            throw new BadRequestException("لا يمكن إعادة حساب عقد ملغي");
+        }
+        if ("COMPLETED".equalsIgnoreCase(sale.getStatus())) {
+            throw new BadRequestException("لا يمكن إعادة حساب عقد مكتمل السداد");
+        }
+
+        // Check if any installment has been paid
+        List<Installment> existingInstallments = installmentRepository.findBySaleIdOrderByInstallmentNoAsc(sale.getId());
+        boolean hasPaidInstallments = existingInstallments.stream()
+                .anyMatch(i -> Boolean.TRUE.equals(i.getIsPaid()) || i.getPaidAmount().compareTo(BigDecimal.ZERO) > 0);
+        if (hasPaidInstallments) {
+            throw new BadRequestException("لا يمكن إعادة حساب العقد لوجود أقساط مسددة. يرجى التعامل مع الأقساط المسددة أولاً.");
+        }
+
+        BigDecimal newTotalPrice = body.containsKey("totalPrice") ? new BigDecimal(body.get("totalPrice").toString()) : sale.getTotalPrice();
+        BigDecimal newDownPayment = body.containsKey("downPayment") ? new BigDecimal(body.get("downPayment").toString()) : sale.getDownPayment();
+        int newMonths = body.containsKey("months") ? Integer.parseInt(body.get("months").toString()) : (sale.getMonths() != null ? sale.getMonths() : 12);
+        LocalDate newFirstDueDate = body.containsKey("firstDueDate") ? LocalDate.parse(body.get("firstDueDate").toString()) : sale.getFirstDueDate();
+
+        if (newTotalPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("إجمالي السعر يجب أن يكون أكبر من الصفر");
+        }
+        if (newDownPayment.compareTo(newTotalPrice) >= 0) {
+            throw new BadRequestException("المقدم يجب أن يكون أقل من إجمالي السعر");
+        }
+
+        // Delete old unpaid installments
+        installmentRepository.deleteAll(existingInstallments);
+
+        // Update sale
+        sale.setTotalPrice(newTotalPrice);
+        sale.setDownPayment(newDownPayment);
+        sale.setMonths(newMonths);
+        sale.setFirstDueDate(newFirstDueDate);
+
+        BigDecimal alreadyPaid = sale.getPaidAmount() != null ? sale.getPaidAmount() : BigDecimal.ZERO;
+        sale.setRemainingAmount(newTotalPrice.subtract(alreadyPaid));
+
+        // Regenerate installments for the debt portion
+        BigDecimal debtToSchedule = newTotalPrice.subtract(newDownPayment);
+        BigDecimal baseInstallment = debtToSchedule.divide(BigDecimal.valueOf(newMonths), 2, java.math.RoundingMode.DOWN);
+        BigDecimal totalScheduled = BigDecimal.ZERO;
+        LocalDate firstDue = newFirstDueDate != null ? newFirstDueDate : sale.getSaleDate().plusMonths(1);
+
+        List<Installment> newInstallments = new ArrayList<>();
+        for (int i = 1; i <= newMonths; i++) {
+            BigDecimal instAmount = baseInstallment;
+            if (i == newMonths) {
+                instAmount = debtToSchedule.subtract(totalScheduled);
+            } else {
+                totalScheduled = totalScheduled.add(instAmount);
+            }
+            Installment inst = Installment.builder()
+                    .saleId(sale.getId())
+                    .installmentNo(i)
+                    .dueDate(firstDue.plusMonths(i - 1))
+                    .amount(instAmount)
+                    .paidAmount(BigDecimal.ZERO)
+                    .isPaid(false)
+                    .isWaived(false)
+                    .branchId(sale.getBranchId())
+                    .build();
+            newInstallments.add(inst);
+        }
+        installmentRepository.saveAll(newInstallments);
+        sale.setInstallments(newInstallments);
+
+        sale = saleRepository.save(sale);
+        auditService.log("RECALCULATE_SALE", "MachineSale", sale.getId().toString(), "تم إعادة جدولة وحساب أقساط العقد", null);
+        return sale;
+    }
+
+    @Transactional
     public void voidSale(UUID saleId, String reason) {
         MachineSale sale = getById(saleId);
         if (sale.getPaidAmount() != null && sale.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
@@ -380,6 +487,7 @@ public class SaleService {
             }
         }
         saleRepository.save(sale);
+        auditService.log("VOID_SALE", "MachineSale", sale.getId().toString(), "تم إلغاء العقد لسبب: " + reason, null);
     }
 
     private String generateReceiptNumber() {

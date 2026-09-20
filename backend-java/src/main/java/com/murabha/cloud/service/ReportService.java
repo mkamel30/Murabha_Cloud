@@ -118,4 +118,56 @@ public class ReportService {
                 "paymentsCount", collectedList.size()
         );
     }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> monthClosingReport(UUID branchId, LocalDate month) {
+        LocalDate targetMonth = month != null ? month.withDayOfMonth(1) : LocalDate.now().withDayOfMonth(1);
+        LocalDate endOfMonth = targetMonth.plusMonths(1).minusDays(1);
+        Instant startInst = targetMonth.atStartOfDay().toInstant(java.time.ZoneOffset.UTC);
+        Instant endInst = endOfMonth.plusDays(1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC);
+
+        // Sales created this month
+        List<MachineSale> monthlySales = saleRepository.findSalesForReport(branchId, targetMonth, endOfMonth, null);
+        BigDecimal newSalesTotal = monthlySales.stream().map(MachineSale::getTotalPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal newDownPaymentsTotal = monthlySales.stream().map(MachineSale::getDownPayment).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Collections this month
+        List<Payment> monthlyPayments = paymentRepository.findPaymentsWithFilters(branchId, null, startInst, endInst);
+        BigDecimal totalCollected = monthlyPayments.stream().map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        long paymentCount = monthlyPayments.size();
+
+        // Installments due this month
+        List<Installment> dueThisMonth = installmentRepository.findInstallmentsWithFilters(branchId, null, false, targetMonth, endOfMonth);
+        BigDecimal totalDueThisMonth = dueThisMonth.stream().map(Installment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalPaidOfDue = dueThisMonth.stream().map(Installment::getPaidAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        long paidCount = dueThisMonth.stream().filter(i -> Boolean.TRUE.equals(i.getIsPaid())).count();
+        long unpaidCount = dueThisMonth.size() - paidCount;
+
+        // Overdue as of end of month
+        List<Installment> overdue = installmentRepository.findOverdueInstallments(branchId, endOfMonth);
+        BigDecimal overdueTotal = overdue.stream()
+                .map(i -> i.getAmount().subtract(i.getPaidAmount()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Collection ratio
+        BigDecimal collectionRatio = totalDueThisMonth.compareTo(BigDecimal.ZERO) > 0
+                ? totalCollected.divide(totalDueThisMonth, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+                : BigDecimal.ZERO;
+
+        return Map.ofEntries(
+                Map.entry("month", targetMonth.toString()),
+                Map.entry("newSalesCount", monthlySales.size()),
+                Map.entry("newSalesTotal", newSalesTotal),
+                Map.entry("newDownPaymentsTotal", newDownPaymentsTotal),
+                Map.entry("totalCollected", totalCollected),
+                Map.entry("paymentCount", paymentCount),
+                Map.entry("dueInstallmentsCount", dueThisMonth.size()),
+                Map.entry("totalDueThisMonth", totalDueThisMonth),
+                Map.entry("paidInstallmentsCount", paidCount),
+                Map.entry("unpaidInstallmentsCount", unpaidCount),
+                Map.entry("overdueCount", overdue.size()),
+                Map.entry("overdueTotal", overdueTotal),
+                Map.entry("collectionRatio", collectionRatio)
+        );
+    }
 }

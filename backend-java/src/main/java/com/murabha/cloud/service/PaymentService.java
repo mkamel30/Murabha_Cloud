@@ -18,6 +18,9 @@ import java.util.UUID;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final com.murabha.cloud.repository.MachineSaleRepository saleRepository;
+    private final com.murabha.cloud.repository.InstallmentRepository installmentRepository;
+    private final AuditService auditService;
 
     @Transactional(readOnly = true)
     public List<Payment> getAll(UUID branchId, UUID saleId, Instant startDate, Instant endDate) {
@@ -44,6 +47,51 @@ public class PaymentService {
         if (updates.containsKey("notes")) {
             payment.setNotes((String) updates.get("notes"));
         }
+        if (updates.containsKey("paidAt")) {
+            Object paidAtObj = updates.get("paidAt");
+            if (paidAtObj instanceof String) {
+                payment.setPaidAt(Instant.parse((String) paidAtObj));
+            }
+        }
         return paymentRepository.save(payment);
+    }
+
+    @Transactional
+    public void voidPayment(UUID paymentId, String reason) {
+        Payment payment = getById(paymentId);
+        if (Boolean.TRUE.equals(payment.getIsVoided())) {
+            throw new com.murabha.cloud.exception.BadRequestException("هذه الدفعة ملغاة بالفعل");
+        }
+
+        // Reverse the payment amount from the sale
+        com.murabha.cloud.entity.MachineSale sale = saleRepository.findById(payment.getSaleId())
+                .orElseThrow(() -> new ResourceNotFoundException("العقد المرتبط بالدفعة غير موجود"));
+
+        sale.setPaidAmount(sale.getPaidAmount().subtract(payment.getAmount()));
+        sale.setRemainingAmount(sale.getRemainingAmount().add(payment.getAmount()));
+        if ("COMPLETED".equalsIgnoreCase(sale.getStatus()) && sale.getRemainingAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+            sale.setStatus("ACTIVE");
+        }
+        saleRepository.save(sale);
+
+        // Reverse installment allocations linked to this payment
+        List<com.murabha.cloud.entity.Installment> installments = installmentRepository.findBySaleIdOrderByInstallmentNoAsc(sale.getId());
+        for (com.murabha.cloud.entity.Installment inst : installments) {
+            if (payment.getId().equals(inst.getPaymentId())) {
+                inst.setPaidAmount(java.math.BigDecimal.ZERO);
+                inst.setIsPaid(false);
+                inst.setPaidDate(null);
+                inst.setPaymentId(null);
+                inst.setReceiptNumber(null);
+                installmentRepository.save(inst);
+            }
+        }
+
+        // Mark payment as voided
+        payment.setIsVoided(true);
+        payment.setVoidReason(reason);
+        payment.setVoidedAt(java.time.Instant.now());
+        paymentRepository.save(payment);
+        auditService.log("VOID_PAYMENT", "Payment", payment.getId().toString(), "تم إلغاء الدفعة لسبب: " + reason, null);
     }
 }

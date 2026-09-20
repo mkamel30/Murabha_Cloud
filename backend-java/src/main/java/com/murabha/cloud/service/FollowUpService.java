@@ -60,6 +60,21 @@ public class FollowUpService {
     }
 
     @Transactional
+    public FollowUp update(UUID id, FollowUpRequest req) {
+        FollowUp followUp = getById(id);
+        if (req.getNote() != null) {
+            followUp.setNote(req.getNote());
+        }
+        if (req.getLogs() != null) {
+            followUp.setLogs(req.getLogs());
+        }
+        if (req.getNextFollowUp() != null) {
+            followUp.setNextFollowUp(req.getNextFollowUp());
+        }
+        return followUpRepository.save(followUp);
+    }
+
+    @Transactional
     public FollowUp complete(UUID id) {
         FollowUp followUp = getById(id);
         followUp.setIsCompleted(true);

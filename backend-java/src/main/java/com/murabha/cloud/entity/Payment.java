@@ -74,6 +74,20 @@ public class Payment {
     @OneToMany(mappedBy = "payment", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<Installment> installments = new ArrayList<>();
 
+    @Builder.Default
+    @Column(name = "is_voided")
+    private Boolean isVoided = false;
+
+    @Column(name = "void_reason")
+    private String voidReason;
+
+    @Column(name = "voided_at")
+    private Instant voidedAt;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

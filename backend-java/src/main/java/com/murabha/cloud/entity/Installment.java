@@ -89,6 +89,10 @@ public class Installment {
     @JoinColumn(name = "branch_id", insertable = false, updatable = false)
     private Branch branch;
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

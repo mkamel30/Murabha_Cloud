@@ -177,6 +177,26 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "تم تسجيل الخروج بنجاح"));
     }
 
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, Object>> changePassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody Map<String, String> body) {
+        String currentPassword = body.get("currentPassword");
+        String newPassword = body.get("newPassword");
+        if (currentPassword == null || newPassword == null || newPassword.length() < 6) {
+            throw new com.murabha.cloud.exception.BadRequestException("كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل");
+        }
+        // Find user and verify current password
+        com.murabha.cloud.entity.User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new com.murabha.cloud.exception.ResourceNotFoundException("المستخدم غير موجود"));
+        if (!new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().matches(currentPassword, user.getPassword())) {
+            throw new com.murabha.cloud.exception.BadRequestException("كلمة المرور الحالية غير صحيحة");
+        }
+        user.setPassword(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(newPassword));
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("message", "تم تغيير كلمة المرور بنجاح"));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal UserPrincipal principal) {
         if (principal == null) {

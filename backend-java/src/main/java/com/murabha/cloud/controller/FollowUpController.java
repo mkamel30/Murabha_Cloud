@@ -47,6 +47,13 @@ public class FollowUpController {
                 .body(followUpService.create(req, BranchContext.getBranchId(), principal.getId()));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<FollowUp> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody FollowUpRequest req) {
+        return ResponseEntity.ok(followUpService.update(id, req));
+    }
+
     @PostMapping("/{id}/complete")
     public ResponseEntity<FollowUp> complete(@PathVariable UUID id) {
         return ResponseEntity.ok(followUpService.complete(id));

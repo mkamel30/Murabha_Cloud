@@ -52,4 +52,10 @@ public class ReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(reportService.collectionRatioReport(BranchContext.getBranchId(), startDate, endDate));
     }
+
+    @GetMapping("/month-closing")
+    public ResponseEntity<Map<String, Object>> monthClosingReport(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate month) {
+        return ResponseEntity.ok(reportService.monthClosingReport(BranchContext.getBranchId(), month));
+    }
 }

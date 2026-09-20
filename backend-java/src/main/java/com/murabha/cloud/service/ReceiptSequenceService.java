@@ -15,13 +15,21 @@ public class ReceiptSequenceService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public long getNextSaleReceiptNumber() {
-        jdbcTemplate.update("UPDATE receipt_sequences SET seq_value = seq_value + 1 WHERE seq_name = 'SALE_RECEIPT'");
+        int updated = jdbcTemplate.update("UPDATE receipt_sequences SET seq_value = seq_value + 1 WHERE seq_name = 'SALE_RECEIPT'");
+        if (updated == 0) {
+            jdbcTemplate.update("INSERT INTO receipt_sequences (seq_name, seq_value) VALUES ('SALE_RECEIPT', 1)");
+            return 1L;
+        }
         return jdbcTemplate.queryForObject("SELECT seq_value FROM receipt_sequences WHERE seq_name = 'SALE_RECEIPT'", Long.class);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public long getNextPaymentReceiptNumber() {
-        jdbcTemplate.update("UPDATE receipt_sequences SET seq_value = seq_value + 1 WHERE seq_name = 'PAYMENT_RECEIPT'");
+        int updated = jdbcTemplate.update("UPDATE receipt_sequences SET seq_value = seq_value + 1 WHERE seq_name = 'PAYMENT_RECEIPT'");
+        if (updated == 0) {
+            jdbcTemplate.update("INSERT INTO receipt_sequences (seq_name, seq_value) VALUES ('PAYMENT_RECEIPT', 1)");
+            return 1L;
+        }
         return jdbcTemplate.queryForObject("SELECT seq_value FROM receipt_sequences WHERE seq_name = 'PAYMENT_RECEIPT'", Long.class);
     }
 }
