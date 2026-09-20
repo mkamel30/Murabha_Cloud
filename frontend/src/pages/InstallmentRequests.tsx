@@ -196,6 +196,14 @@ export default function InstallmentRequests() {
 
     setSubmitting(true);
     try {
+      const serialRes = await salesApi.checkSerial(formData.machineSerial.trim().toUpperCase());
+      if (!serialRes.available) {
+        setSerialValidation({ loading: false, error: serialRes.message || 'رقم الماكينة محجوز أو مستخدم بالفعل', verified: false });
+        showToast(serialRes.message || 'رقم الماكينة محجوز أو مستخدم بالفعل', 'error');
+        setSubmitting(false);
+        return;
+      }
+
       await installmentRequestsApi.create(formData);
       showToast('تم تسجيل طلب التقسيط بنجاح وتم إرسال التنبيه لمشرف الفرع', 'success');
       setShowCreateModal(false);

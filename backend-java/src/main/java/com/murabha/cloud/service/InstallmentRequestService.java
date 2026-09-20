@@ -69,6 +69,16 @@ public class InstallmentRequestService {
         Customer customer = customerRepository.findById(dto.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("العميل غير موجود"));
 
+        String cleanSerial = dto.getMachineSerial() != null ? dto.getMachineSerial().trim().toUpperCase() : "";
+        if (cleanSerial.isBlank()) {
+            throw new BadRequestException("رقم سيريال الماكينة إجباري");
+        }
+
+        Map<String, Object> serialCheck = saleService.checkSerial(cleanSerial);
+        if (Boolean.FALSE.equals(serialCheck.get("available"))) {
+            throw new BadRequestException((String) serialCheck.get("message"));
+        }
+
         UUID branchId = requester.getBranchId() != null ? requester.getBranchId() : customer.getBranchId();
         BigDecimal downPayment = dto.getDownPayment() != null ? dto.getDownPayment() : BigDecimal.ZERO;
         BigDecimal debt = dto.getTotalPrice().subtract(downPayment);
