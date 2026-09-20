@@ -23,7 +23,7 @@ server:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:4c3e2b1a5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a}
+    secret: ${JWT_SECRET}
     access-token-expiration-ms: 900000 # 15 minutes
     refresh-token-expiration-ms: 604800000 # 7 days
     cookie-name: refreshToken
