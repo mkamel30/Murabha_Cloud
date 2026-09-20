@@ -157,7 +157,7 @@ public class ExportService {
                 "<div class='receipt-card'>" +
                 "  <div class='header'>" +
                 "    <img src='" + logoUri + "' alt='Logo' class='logo' />" +
-                "    <div class='company-title'>مرابحة كلاود لتقسيط الماكينات<div class='branch-tag'>" + escape(branchName) + "</div></div>" +
+                "    <div class='company-title'>شركة تطبيقات الكروت الذكية - سمارت<div class='branch-tag'>" + escape(branchName) + "</div></div>" +
                 "  </div>" +
                 "  <div class='title'>إيصال استلام نقدية رسمي</div>" +
                 "  <div class='grid'>" +
@@ -238,7 +238,7 @@ public class ExportService {
         sb.append("<div class='contract-header'>");
         sb.append("  <img src='").append(logoUri).append("' alt='Logo' class='logo' />");
         sb.append("  <div class='company-info'>");
-        sb.append("    <div class='company-name'>شركة المرابحة لتقسيط الماكينات الذكية</div>");
+        sb.append("    <div class='company-name'>شركة تطبيقات الكروت الذكية - سمارت</div>");
         sb.append("    <div class='branch-name'>").append(escape(branchName)).append("</div>");
         sb.append("  </div>");
         sb.append("</div>");
@@ -343,7 +343,7 @@ public class ExportService {
         sb.append("  <div class='sig-box'>إدارة الفرع / ممثل المبيعات<div class='sig-line'>التوقيع والختم الرسمي</div></div>");
         sb.append("</div>");
 
-        sb.append("<div class='footer'>تم إصدار هذا العقد إلكترونياً عبر منظومة مرابحة كلاود — شكراً لتعاملكم معنا</div>");
+        sb.append("<div class='footer'>تم إصدار هذا العقد إلكترونياً عبر منظومة شركة تطبيقات الكروت الذكية - سمارت — شكراً لتعاملكم معنا</div>");
         sb.append("</div>");
 
         sb.append("<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };</script>");
@@ -409,7 +409,7 @@ public class ExportService {
         sb.append("<div class='header'>");
         sb.append("  <img src='").append(logoUri).append("' alt='Logo' class='logo' />");
         sb.append("  <div class='company-info'>");
-        sb.append("    <div class='company-name'>شركة المرابحة لتقسيط الماكينات الذكية</div>");
+        sb.append("    <div class='company-name'>شركة تطبيقات الكروت الذكية - سمارت</div>");
         sb.append("    <div class='branch-name'>").append(escape(branchName)).append("</div>");
         sb.append("    <div class='badge'>خالصة السداد بالكامل ✓</div>");
         sb.append("  </div>");
@@ -424,7 +424,7 @@ public class ExportService {
         String phone = customer != null && customer.getPhone() != null ? customer.getPhone() : "";
 
         sb.append("<div class='declaration-box'>");
-        sb.append("  تُقر وتُشهد <strong>شركة المرابحة لتقسيط الماكينات الذكية (").append(escape(branchName)).append(")</strong> بأن السيد / ");
+        sb.append("  تُقر وتُشهد <strong>شركة تطبيقات الكروت الذكية - سمارت (").append(escape(branchName)).append(")</strong> بأن السيد / ");
         sb.append("  <strong>").append(escape(custName)).append("</strong> (كود العميل: <code>").append(escape(bkCode)).append("</code>) ");
         sb.append("  المشتري بموجب <strong>عقد البيع رقم (").append(escape(sale.getReceiptNumber())).append(")</strong> المؤرخ في ").append(sale.getSaleDate() != null ? sale.getSaleDate().toString() : "").append(" ");
         sb.append("  الخاص بالماكينة سيريال رقم: <strong>").append(escape(sale.getMachineSerial())).append("</strong> ");
@@ -491,7 +491,7 @@ public class ExportService {
         sb.append("</div>");
 
         sb.append("<div class='footer'>");
-        sb.append("  صدرت هذه الشهادة الرسمية بناءً على طلب العميل لتقديمها إلى من يهمه الأمر دون أي مسؤولية على الشركة تجاه حقوق الغير — منظومة مرابحة كلاود");
+        sb.append("  صدرت هذه الشهادة الرسمية بناءً على طلب العميل لتقديمها إلى من يهمه الأمر دون أي مسؤولية على الشركة تجاه حقوق الغير — شركة تطبيقات الكروت الذكية (سمارت)");
         sb.append("</div>");
 
         sb.append("</div>");
