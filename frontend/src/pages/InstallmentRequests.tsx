@@ -297,6 +297,19 @@ export default function InstallmentRequests() {
     return false;
   };
 
+  const canReject = (req: InstallmentRequestItem) => {
+    const role = user?.role;
+    if (role === 'SUPER_ADMIN' || role === 'HQ_MANAGER') return true;
+    if (req.status === 'CONVERTED_TO_SALE' || req.status === 'REJECTED') return false;
+    if (req.status === 'PENDING_SUPERVISOR') {
+      return role === 'BRANCH_SUPERVISOR' || role === 'BRANCH_MANAGER';
+    }
+    if (req.status === 'PENDING_MANAGER' || req.status === 'APPROVED') {
+      return role === 'BRANCH_MANAGER';
+    }
+    return false;
+  };
+
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
       const matchSearch =
@@ -592,8 +605,8 @@ export default function InstallmentRequests() {
                           </button>
                         )}
 
-                        {/* Reject Button (if authorized) */}
-                        {canApprove(req) && (
+                        {/* Reject / Cancel Button (if authorized) */}
+                        {canReject(req) && (
                           <button
                             type="button"
                             onClick={() => {
@@ -601,9 +614,9 @@ export default function InstallmentRequests() {
                               setShowRejectModal(true);
                             }}
                             className="px-2.5 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg font-bold text-[11px] transition cursor-pointer"
-                            title="رفض الطلب"
+                            title={req.status === 'APPROVED' ? 'إلغاء الطلب المعتمد' : 'رفض الطلب'}
                           >
-                            رفض
+                            {req.status === 'APPROVED' ? 'إلغاء' : 'رفض'}
                           </button>
                         )}
 

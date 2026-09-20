@@ -71,7 +71,7 @@ public class SaleService {
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> checkSerial(String serial) {
+    public Map<String, Object> checkSerial(String serial, UUID excludeRequestId) {
         if (serial == null || serial.isBlank()) {
             return Map.of("available", true);
         }
@@ -94,6 +94,12 @@ public class SaleService {
                 cleanSerial, 
                 List.of("PENDING_SUPERVISOR", "PENDING_MANAGER", "APPROVED")
             );
+
+        if (excludeRequestId != null) {
+            pendingRequests = pendingRequests.stream()
+                .filter(r -> !excludeRequestId.equals(r.getId()))
+                .toList();
+        }
             
         if (!pendingRequests.isEmpty()) {
             com.murabha.cloud.entity.InstallmentRequest existingReq = pendingRequests.get(0);
@@ -105,6 +111,11 @@ public class SaleService {
         }
 
         return Map.of("available", true);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> checkSerial(String serial) {
+        return checkSerial(serial, null);
     }
 
     @Transactional(readOnly = true)
@@ -130,7 +141,7 @@ public class SaleService {
                 .orElseThrow(() -> new ResourceNotFoundException("العميل غير موجود"));
 
         String serial = req.getMachineSerial().trim().toUpperCase();
-        Map<String, Object> serialCheck = checkSerial(serial);
+        Map<String, Object> serialCheck = checkSerial(serial, req.getInstallmentRequestId());
         if (Boolean.FALSE.equals(serialCheck.get("available"))) {
             throw new BadRequestException((String) serialCheck.get("message"));
         }

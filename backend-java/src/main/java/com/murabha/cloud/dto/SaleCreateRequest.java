@@ -55,4 +55,5 @@ public class SaleCreateRequest {
     private String guarantorPhone;
     private String guarantorRelation;
     private List<UUID> attachmentIds;
+    private UUID installmentRequestId;
 }

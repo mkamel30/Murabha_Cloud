@@ -206,8 +206,8 @@ public class InstallmentRequestService {
     @Transactional
     public InstallmentRequest reject(UUID id, ApprovalActionRequest action, UserPrincipal reviewer) {
         InstallmentRequest req = getById(id);
-        if ("APPROVED".equals(req.getStatus()) || "CONVERTED_TO_SALE".equals(req.getStatus())) {
-            throw new BadRequestException("لا يمكن رفض طلب تم اعتماده أو تحويله لعقد بيع");
+        if ("CONVERTED_TO_SALE".equals(req.getStatus())) {
+            throw new BadRequestException("لا يمكن إلغاء أو رفض طلب تم تحويله بالفعل لعقد بيع رسمي");
         }
 
         if (action.getReason() == null || action.getReason().isBlank()) {
@@ -255,6 +255,7 @@ public class InstallmentRequestService {
                 .firstDueDate(LocalDate.now().plusMonths(1))
                 .months(req.getMonths())
                 .installmentAmount(req.getInstallmentAmount())
+                .installmentRequestId(req.getId())
                 .build();
 
         MachineSale sale = saleService.create(saleReq, req.getBranchId(), user.getId());
