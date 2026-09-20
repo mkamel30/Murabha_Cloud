@@ -49,4 +49,10 @@ public class SaleCreateRequest {
     
     @jakarta.validation.constraints.DecimalMin(value = "0.0", inclusive = false, message = "مبلغ القسط يجب أن يكون أكبر من الصفر")
     private BigDecimal installmentAmount;
+    
+    private String guarantorName;
+    private String guarantorNationalId;
+    private String guarantorPhone;
+    private String guarantorRelation;
+    private List<UUID> attachmentIds;
 }

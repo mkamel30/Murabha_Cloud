@@ -71,8 +71,13 @@ public class SettingsController {
             if ("enableCashSales".equals(s.getKey())) {
                 map.put(s.getKey(), Boolean.parseBoolean(s.getValue()));
             } else if ("paymentPlaces".equals(s.getKey())) {
-                // Return default or parsed json
-                map.put(s.getKey(), List.of("Damen", "البريد", "البنك"));
+                try {
+                    map.put(s.getKey(), new com.fasterxml.jackson.databind.ObjectMapper().readValue(s.getValue(), List.class));
+                } catch (Exception e) {
+                    map.put(s.getKey(), List.of("Damen", "البريد", "البنك"));
+                }
+            } else if ("enableEarlySettlement".equals(s.getKey()) || "requireKycAttachments".equals(s.getKey()) || "requireGuarantor".equals(s.getKey())) {
+                map.put(s.getKey(), Boolean.parseBoolean(s.getValue()));
             } else {
                 map.put(s.getKey(), s.getValue());
             }

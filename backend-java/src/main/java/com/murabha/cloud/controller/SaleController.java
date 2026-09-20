@@ -4,6 +4,7 @@ import com.murabha.cloud.dto.PaymentRequest;
 import com.murabha.cloud.dto.SaleCreateRequest;
 import com.murabha.cloud.entity.MachineSale;
 import com.murabha.cloud.security.BranchContext;
+import com.murabha.cloud.security.SecurityUtils;
 import com.murabha.cloud.security.UserPrincipal;
 import com.murabha.cloud.service.SaleService;
 import jakarta.validation.Valid;
@@ -127,6 +128,13 @@ public class SaleController {
             @PathVariable UUID id,
             @RequestBody Map<String, Object> body) {
         return ResponseEntity.ok(saleService.fullRecalculate(id, body));
+    }
+
+    @PostMapping("/{id}/early-settle")
+    public ResponseEntity<com.murabha.cloud.entity.MachineSale> earlySettle(@PathVariable UUID id, @RequestBody Map<String, java.math.BigDecimal> body) {
+        java.math.BigDecimal discountAmount = body.get("discountAmount");
+        java.util.UUID currentUserId = SecurityUtils.getCurrentUser() != null ? SecurityUtils.getCurrentUser().getId() : null;
+        return ResponseEntity.ok(saleService.earlySettle(id, discountAmount, currentUserId));
     }
 
     @PostMapping("/{id}/void")

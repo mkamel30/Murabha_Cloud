@@ -36,6 +36,7 @@ public class SaleService {
     private final CustomerRepository customerRepository;
     private final ReceiptSequenceService receiptSequenceService;
     private final AuditService auditService;
+    private final com.murabha.cloud.repository.SystemSettingRepository systemSettingRepository;
 
 
 
@@ -128,6 +129,20 @@ public class SaleService {
         }
 
         String saleType = req.getSaleType() != null ? req.getSaleType().toUpperCase() : "INSTALLMENT";
+        
+        if ("INSTALLMENT".equals(saleType)) {
+            Boolean requireGuarantor = systemSettingRepository.findById("requireGuarantor")
+                    .map(s -> Boolean.parseBoolean(s.getValue()))
+                    .orElse(false);
+            if (Boolean.TRUE.equals(requireGuarantor)) {
+                if (req.getGuarantorName() == null || req.getGuarantorName().isBlank() ||
+                    req.getGuarantorNationalId() == null || req.getGuarantorNationalId().isBlank() ||
+                    req.getGuarantorPhone() == null || req.getGuarantorPhone().isBlank()) {
+                    throw new BadRequestException("بيانات الضامن مطلوبة (الاسم، الرقم القومي، ورقم الهاتف)");
+                }
+            }
+        }
+
         String receiptNumber = generateReceiptNumber();
 
         MachineSale sale = MachineSale.builder()
@@ -148,6 +163,10 @@ public class SaleService {
                 .status("ACTIVE")
                 .branchId(branchId != null ? branchId : customer.getBranchId())
                 .createdByUserId(createdByUserId)
+                .guarantorName(req.getGuarantorName())
+                .guarantorNationalId(req.getGuarantorNationalId())
+                .guarantorPhone(req.getGuarantorPhone())
+                .guarantorRelation(req.getGuarantorRelation())
                 .build();
 
         sale = saleRepository.save(sale);
@@ -307,14 +326,27 @@ public class SaleService {
             installmentRepository.save(inst);
         }
 
-        sale.setPaidAmount(sale.getPaidAmount().add(amount));
-        sale.setRemainingAmount(sale.getRemainingAmount().subtract(amount));
+        if (remainingToAllocate.compareTo(BigDecimal.ZERO) > 0) {
+            Customer customer = sale.getCustomer();
+            if (customer == null) {
+                customer = customerRepository.findById(sale.getCustomerId()).orElse(null);
+            }
+            if (customer != null) {
+                customer.setWalletBalance(customer.getWalletBalance().add(remainingToAllocate));
+                customerRepository.save(customer);
+                auditService.log("WALLET_DEPOSIT", "Customer", customer.getId().toString(), "تم إيداع مبلغ " + remainingToAllocate + " في المحفظة من فائض سداد قسط", null);
+            }
+        }
+
+        BigDecimal saleActualAllocated = amount.subtract(remainingToAllocate);
+        sale.setPaidAmount(sale.getPaidAmount().add(saleActualAllocated));
+        sale.setRemainingAmount(sale.getRemainingAmount().subtract(saleActualAllocated));
         if (sale.getRemainingAmount().compareTo(BigDecimal.ZERO) <= 0) {
             sale.setStatus("COMPLETED");
             sale.setRemainingAmount(BigDecimal.ZERO);
         }
         saleRepository.save(sale);
-        auditService.log("PAY_INSTALLMENT", "MachineSale", sale.getId().toString(), "تم سداد مبلغ: " + amount + " بموجب إيصال: " + receiptNumber, null);
+        auditService.log("PAY_INSTALLMENT", "MachineSale", sale.getId().toString(), "تم سداد مبلغ: " + saleActualAllocated + " بموجب إيصال: " + receiptNumber, null);
 
         return Map.of("receiptNumber", receiptNumber, "amount", amount);
     }
@@ -488,6 +520,59 @@ public class SaleService {
         }
         saleRepository.save(sale);
         auditService.log("VOID_SALE", "MachineSale", sale.getId().toString(), "تم إلغاء العقد لسبب: " + reason, null);
+    }
+
+    @Transactional
+    public MachineSale earlySettle(UUID saleId, BigDecimal discountAmount, UUID userId) {
+        MachineSale sale = getById(saleId);
+        
+        String enableEarlySettlement = systemSettingRepository.findById("enableEarlySettlement")
+                .map(s -> s.getValue())
+                .orElse("false");
+        
+        if (!"true".equalsIgnoreCase(enableEarlySettlement)) {
+            throw new BadRequestException("ميزة السداد المعجل غير مفعلة في إعدادات النظام");
+        }
+
+        BigDecimal discount = discountAmount != null ? discountAmount : BigDecimal.ZERO;
+        if (discount.compareTo(sale.getRemainingAmount()) > 0) {
+            throw new BadRequestException("مبلغ الخصم لا يمكن أن يكون أكبر من المبلغ المتبقي");
+        }
+
+        BigDecimal settlementAmount = sale.getRemainingAmount().subtract(discount);
+        
+        if (settlementAmount.compareTo(BigDecimal.ZERO) > 0) {
+            String receiptNumber = generatePaymentReceipt();
+            Payment payment = Payment.builder()
+                    .receiptNumber(receiptNumber)
+                    .saleId(sale.getId())
+                    .paymentType("EARLY_SETTLEMENT")
+                    .amount(settlementAmount)
+                    .paymentPlace(sale.getPaymentPlace())
+                    .notes("سداد معجل بخصم " + discount)
+                    .paidAt(Instant.now())
+                    .branchId(sale.getBranchId())
+                    .createdByUserId(userId)
+                    .build();
+            paymentRepository.save(payment);
+            sale.setPaidAmount(sale.getPaidAmount().add(settlementAmount));
+            sale.setRemainingAmount(BigDecimal.ZERO);
+        }
+
+        List<Installment> installments = installmentRepository.findBySaleIdOrderByInstallmentNoAsc(saleId);
+        for (Installment inst : installments) {
+            if (!Boolean.TRUE.equals(inst.getIsPaid())) {
+                inst.setIsWaived(true);
+                inst.setWaiveReason("سداد معجل");
+                installmentRepository.save(inst);
+            }
+        }
+        
+        sale.setStatus("COMPLETED");
+        saleRepository.save(sale);
+        
+        auditService.log("EARLY_SETTLE", "MachineSale", sale.getId().toString(), "تم السداد المعجل للعقد بخصم: " + discount, null);
+        return sale;
     }
 
     private String generateReceiptNumber() {

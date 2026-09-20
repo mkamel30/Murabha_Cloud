@@ -42,6 +42,9 @@ class SaleServiceTest {
     private CustomerRepository customerRepository;
     @Mock
     private ReceiptSequenceService receiptSequenceService;
+
+    @Mock
+    private com.murabha.cloud.repository.SystemSettingRepository systemSettingRepository;
     @Mock
     private AuditService auditService;
 
@@ -102,6 +105,7 @@ class SaleServiceTest {
         when(saleRepository.findByReceiptNumber(anyString())).thenReturn(Optional.empty());
         
         when(receiptSequenceService.getNextSaleReceiptNumber()).thenReturn(1L);
+        when(systemSettingRepository.findById("requireGuarantor")).thenReturn(Optional.empty());
         when(saleRepository.save(any(MachineSale.class))).thenAnswer(invocation -> {
             MachineSale s = invocation.getArgument(0);
             if (s.getId() == null) s.setId(UUID.randomUUID());

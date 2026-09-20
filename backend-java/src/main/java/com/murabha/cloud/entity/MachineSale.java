@@ -104,6 +104,18 @@ public class MachineSale {
     @Column(name = "created_by_user_id")
     private UUID createdByUserId;
 
+    @Column(name = "guarantor_name", length = 128)
+    private String guarantorName;
+
+    @Column(name = "guarantor_national_id", length = 32)
+    private String guarantorNationalId;
+
+    @Column(name = "guarantor_phone", length = 32)
+    private String guarantorPhone;
+
+    @Column(name = "guarantor_relation", length = 64)
+    private String guarantorRelation;
+
     @JsonIgnoreProperties({"sale", "hibernateLazyInitializer", "handler"})
     @Builder.Default
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)

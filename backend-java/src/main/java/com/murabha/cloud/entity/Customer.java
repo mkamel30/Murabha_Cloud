@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "customers", uniqueConstraints = {
@@ -57,6 +58,10 @@ public class Customer {
 
     @Column(name = "branch_id")
     private UUID branchId;
+
+    @Builder.Default
+    @Column(name = "wallet_balance", nullable = false, precision = 12, scale = 2)
+    private BigDecimal walletBalance = BigDecimal.ZERO;
 
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
