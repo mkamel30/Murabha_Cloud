@@ -71,18 +71,28 @@ public class PaymentService {
             throw new com.murabha.cloud.exception.BadRequestException("هذه الدفعة ملغاة بالفعل");
         }
 
-        // Reverse the payment amount from the sale
+        // 1. Mark payment as voided
+        payment.setIsVoided(true);
+        payment.setVoidReason(reason != null && !reason.isBlank() ? reason : "إلغاء دفعة");
+        payment.setVoidedAt(Instant.now());
+        paymentRepository.save(payment);
+
+        // 2. Reverse the payment amount from the sale
         com.murabha.cloud.entity.MachineSale sale = saleRepository.findById(payment.getSaleId())
                 .orElseThrow(() -> new ResourceNotFoundException("العقد المرتبط بالدفعة غير موجود"));
 
+        if ("DOWN_PAYMENT".equalsIgnoreCase(payment.getPaymentType())) {
+            sale.setDownPayment(java.math.BigDecimal.ZERO);
+        }
+
         sale.setPaidAmount(sale.getPaidAmount().subtract(payment.getAmount()));
         sale.setRemainingAmount(sale.getRemainingAmount().add(payment.getAmount()));
-        if ("COMPLETED".equalsIgnoreCase(sale.getStatus()) && sale.getRemainingAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+        if (sale.getRemainingAmount().compareTo(java.math.BigDecimal.ZERO) > 0 && "COMPLETED".equalsIgnoreCase(sale.getStatus())) {
             sale.setStatus("ACTIVE");
         }
         saleRepository.save(sale);
 
-        // Reverse installment allocations linked to this payment
+        // 3. Reverse installment allocations linked to this payment
         List<com.murabha.cloud.entity.Installment> installments = installmentRepository.findBySaleIdOrderByInstallmentNoAsc(sale.getId());
         for (com.murabha.cloud.entity.Installment inst : installments) {
             if (payment.getId().equals(inst.getPaymentId())) {
@@ -91,16 +101,14 @@ public class PaymentService {
                 inst.setPaidDate(null);
                 inst.setPaymentId(null);
                 inst.setReceiptNumber(null);
+                inst.setPaymentPlace(null);
                 installmentRepository.save(inst);
             }
         }
 
-        // Mark payment as voided
-        payment.setIsVoided(true);
-        payment.setVoidReason(reason);
-        payment.setVoidedAt(java.time.Instant.now());
-        paymentRepository.save(payment);
         auditService.log("VOID_PAYMENT", "Payment", payment.getId().toString(), "تم إلغاء الدفعة لسبب: " + reason, null);
-        realtimeEventService.broadcast("PAYMENT", "VOIDED", sale.getId(), sale.getBranchId());
+        realtimeEventService.broadcast("PAYMENT", "VOIDED", payment.getId(), sale.getBranchId());
+        realtimeEventService.broadcast("SALE", "UPDATED", sale.getId(), sale.getBranchId());
+        realtimeEventService.broadcast("INSTALLMENT", "UPDATED", sale.getId(), sale.getBranchId());
     }
 }

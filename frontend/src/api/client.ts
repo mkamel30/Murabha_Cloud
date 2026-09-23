@@ -249,7 +249,8 @@ export const paymentsApi = {
   getAll: (filters?: { startDate?: string; endDate?: string }) =>
     api.get('/payments', { params: filters }).then((r) => r.data),
   getById: (id: string) => api.get(`/payments/${id}`).then((r) => r.data),
-  void: (id: string) => api.post(`/payments/${id}/void`).then((r) => r.data),
+  void: (id: string, reason?: string) => api.post(`/payments/${id}/void`, { reason }).then((r) => r.data),
+  delete: (id: string, reason?: string) => api.delete(`/payments/${id}`, { params: { reason } }).then((r) => r.data),
   update: (id: string, data: { receiptNumber?: string; paidAt?: string }) =>
     api.put(`/payments/${id}`, data).then((r) => r.data),
 };

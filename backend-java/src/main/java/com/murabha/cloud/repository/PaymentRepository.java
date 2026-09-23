@@ -25,6 +25,7 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID>, JpaSpec
     default List<Payment> findPaymentsWithFilters(UUID branchId, UUID saleId, Instant startDate, Instant endDate) {
         Specification<Payment> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.or(cb.isNull(root.get("isVoided")), cb.isFalse(root.get("isVoided"))));
             if (branchId != null) predicates.add(cb.equal(root.get("branchId"), branchId));
             if (saleId != null) predicates.add(cb.equal(root.get("saleId"), saleId));
             if (startDate != null) predicates.add(cb.greaterThanOrEqualTo(root.get("paidAt"), startDate));
@@ -35,15 +36,15 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID>, JpaSpec
         return findAll(spec);
     }
 
-    @org.springframework.data.jpa.repository.Query("SELECT SUM(p.amount) FROM Payment p WHERE (:branchId IS NULL OR p.branchId = :branchId) AND (cast(:startDate as timestamp) IS NULL OR p.paidAt >= :startDate) AND (cast(:endDate as timestamp) IS NULL OR p.paidAt <= :endDate)")
+    @org.springframework.data.jpa.repository.Query("SELECT SUM(p.amount) FROM Payment p WHERE (p.isVoided IS NULL OR p.isVoided = false) AND (:branchId IS NULL OR p.branchId = :branchId) AND (cast(:startDate as timestamp) IS NULL OR p.paidAt >= :startDate) AND (cast(:endDate as timestamp) IS NULL OR p.paidAt <= :endDate)")
     java.math.BigDecimal sumPaymentsWithFilters(@org.springframework.data.repository.query.Param("branchId") UUID branchId, @org.springframework.data.repository.query.Param("startDate") Instant startDate, @org.springframework.data.repository.query.Param("endDate") Instant endDate);
 
-    @org.springframework.data.jpa.repository.Query("SELECT COUNT(p) FROM Payment p WHERE (:branchId IS NULL OR p.branchId = :branchId) AND (cast(:startDate as timestamp) IS NULL OR p.paidAt >= :startDate) AND (cast(:endDate as timestamp) IS NULL OR p.paidAt <= :endDate)")
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(p) FROM Payment p WHERE (p.isVoided IS NULL OR p.isVoided = false) AND (:branchId IS NULL OR p.branchId = :branchId) AND (cast(:startDate as timestamp) IS NULL OR p.paidAt >= :startDate) AND (cast(:endDate as timestamp) IS NULL OR p.paidAt <= :endDate)")
     long countPaymentsWithFilters(@org.springframework.data.repository.query.Param("branchId") UUID branchId, @org.springframework.data.repository.query.Param("startDate") Instant startDate, @org.springframework.data.repository.query.Param("endDate") Instant endDate);
 
-    @org.springframework.data.jpa.repository.Query("SELECT p FROM Payment p WHERE (:branchId IS NULL OR p.branchId = :branchId) ORDER BY p.paidAt DESC")
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM Payment p WHERE (p.isVoided IS NULL OR p.isVoided = false) AND (:branchId IS NULL OR p.branchId = :branchId) ORDER BY p.paidAt DESC")
     org.springframework.data.domain.Page<Payment> findRecentPayments(@org.springframework.data.repository.query.Param("branchId") UUID branchId, org.springframework.data.domain.Pageable pageable);
 
-    @org.springframework.data.jpa.repository.Query("SELECT p.paymentPlace, SUM(p.amount) FROM Payment p WHERE (:branchId IS NULL OR p.branchId = :branchId) GROUP BY p.paymentPlace")
+    @org.springframework.data.jpa.repository.Query("SELECT p.paymentPlace, SUM(p.amount) FROM Payment p WHERE (p.isVoided IS NULL OR p.isVoided = false) AND (:branchId IS NULL OR p.branchId = :branchId) GROUP BY p.paymentPlace")
     List<Object[]> sumByPaymentPlace(@org.springframework.data.repository.query.Param("branchId") UUID branchId);
 }

@@ -41,12 +41,21 @@ public class PaymentController {
     }
 
     @PostMapping("/{id}/void")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER', 'BRANCH_SUPERVISOR')")
     public ResponseEntity<Map<String, Object>> voidPayment(
             @PathVariable UUID id,
             @RequestBody(required = false) Map<String, String> body) {
-        String reason = body != null ? body.get("reason") : null;
+        String reason = body != null ? body.get("reason") : "إلغاء بواسطة الإدارة / المشرف";
         paymentService.voidPayment(id, reason);
-        return ResponseEntity.ok(Map.of("message", "تم إلغاء الدفعة بنجاح"));
+        return ResponseEntity.ok(Map.of("message", "تم إلغاء وحذف أثر الدفعة بنجاح"));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER', 'BRANCH_SUPERVISOR')")
+    public ResponseEntity<Map<String, Object>> deletePayment(
+            @PathVariable UUID id,
+            @RequestParam(required = false, defaultValue = "حذف الدفعة من النظام") String reason) {
+        paymentService.voidPayment(id, reason);
+        return ResponseEntity.ok(Map.of("message", "تم حذف الدفعة وإعادة تسوية العقد بنجاح"));
     }
 }

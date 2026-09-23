@@ -9,10 +9,12 @@ import { PrimaryButton, SecondaryButton, PageHeader, EmptyState, TableActions } 
 import { SearchFilterBar } from '@/lib/SearchFilterBar';
 import { Modal } from '@/lib/Modal';
 import { useRealtimeSync } from '@/context/RealtimeContext';
+import { useAuth } from '@/context/AuthContext';
 
 type PaymentTypeFilter = '' | 'CASH_SALE' | 'DOWN_PAYMENT' | 'INSTALLMENT';
 
 export default function Payments() {
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +24,13 @@ export default function Payments() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<{ id: string; receiptNumber: string; paidAt: string } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Void / Delete payment state
+  const [voidingPayment, setVoidingPayment] = useState<Payment | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [isVoiding, setIsVoiding] = useState(false);
+
+  const canVoid = user && ['SUPER_ADMIN', 'HQ_MANAGER', 'BRANCH_MANAGER', 'BRANCH_SUPERVISOR'].includes(user.role);
 
   useEffect(() => {
     loadPayments();
@@ -113,6 +122,22 @@ export default function Payments() {
       showToast(err.response?.data?.error || 'فشل تحديث البيانات', 'error');
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleConfirmVoid = async () => {
+    if (!voidingPayment) return;
+    setIsVoiding(true);
+    try {
+      await paymentsApi.void(voidingPayment.id, voidReason || 'إلغاء دفعة من شاشة التحصيلات');
+      showToast('تم حذف وإلغاء الدفعة وإعادة تسوية العقد بنجاح', 'success');
+      setVoidingPayment(null);
+      setVoidReason('');
+      loadPayments();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || err.response?.data?.message || 'فشل حذف الدفعة', 'error');
+    } finally {
+      setIsVoiding(false);
     }
   };
 
@@ -231,6 +256,15 @@ export default function Payments() {
                         <SecondaryButton size="sm" onClick={() => handleEditClick(payment)}>
                           تعديل
                         </SecondaryButton>
+                        {canVoid && (
+                          <button
+                            type="button"
+                            onClick={() => setVoidingPayment(payment)}
+                            className="px-2.5 py-1 text-xs font-semibold text-rose-600 hover:text-rose-800 hover:bg-rose-50 border border-rose-200 rounded transition"
+                          >
+                            حذف
+                          </button>
+                        )}
                       </TableActions>
                    </td>
                  </tr>
@@ -312,6 +346,9 @@ export default function Payments() {
                            <div className="flex justify-center gap-2">
                               <button onClick={() => handlePrintReceipt(pay.id)} className="text-blue-600 hover:text-blue-800 text-xs">طباعة</button>
                               <button onClick={() => handleEditClick(pay)} className="text-amber-600 hover:text-amber-800 text-xs">تعديل</button>
+                              {canVoid && (
+                                <button onClick={() => setVoidingPayment(pay)} className="text-rose-600 hover:text-rose-800 text-xs font-semibold">حذف</button>
+                              )}
                            </div>
                         </td>
                       </tr>
@@ -364,6 +401,53 @@ export default function Payments() {
           </form>
         )}
       </Modal>
+
+      {/* Void / Delete Confirmation Modal */}
+      {voidingPayment && (
+        <Modal
+          isOpen={true}
+          onClose={() => { if (!isVoiding) { setVoidingPayment(null); setVoidReason(''); } }}
+          title="تأكيد حذف / إلغاء الدفعة"
+        >
+          <div className="space-y-4">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm">
+              <p className="font-bold mb-1">تنبيه هام:</p>
+              <p>أنت على وشك حذف الدفعة ذات الإيصال رقم <span className="font-mono font-bold">{voidingPayment.receiptNumber}</span> بمبلغ <span className="font-bold">{formatCurrency(voidingPayment.amount)}</span>.</p>
+              <p className="mt-1 text-xs text-rose-700">سيتم عكس أثرها فوراً، وإعادة احتساب المتبقي على العقد، وإلغاء سداد القسط المرتبط بها وتحديث التقارير.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                سبب الحذف / الإلغاء (اختياري)
+              </label>
+              <input
+                type="text"
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                placeholder="مثال: خطأ في إدخال الإيصال / دفعة ملغاة..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t">
+              <SecondaryButton
+                disabled={isVoiding}
+                onClick={() => { setVoidingPayment(null); setVoidReason(''); }}
+              >
+                إلغاء
+              </SecondaryButton>
+              <button
+                type="button"
+                disabled={isVoiding}
+                onClick={handleConfirmVoid}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isVoiding ? 'جاري الحذف...' : 'تأكيد الحذف'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
