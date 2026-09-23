@@ -22,6 +22,7 @@ public class InstallmentService {
 
     private final InstallmentRepository installmentRepository;
     private final SaleService saleService;
+    private final RealtimeEventService realtimeEventService;
 
     @Transactional(readOnly = true)
     public List<Installment> getAll(UUID branchId, UUID saleId, Boolean isPaid, LocalDate startDate, LocalDate endDate) {
@@ -68,6 +69,8 @@ public class InstallmentService {
         if (updates.containsKey("paymentPlace")) {
             inst.setPaymentPlace((String) updates.get("paymentPlace"));
         }
-        return installmentRepository.save(inst);
+        inst = installmentRepository.save(inst);
+        realtimeEventService.broadcast("INSTALLMENT", "UPDATED", inst.getSaleId(), inst.getBranchId());
+        return inst;
     }
 }

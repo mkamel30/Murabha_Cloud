@@ -38,6 +38,7 @@ public class SaleService {
     private final ReceiptSequenceService receiptSequenceService;
     private final AuditService auditService;
     private final com.murabha.cloud.repository.SystemSettingRepository systemSettingRepository;
+    private final RealtimeEventService realtimeEventService;
 
 
 
@@ -273,6 +274,7 @@ public class SaleService {
 
         sale = saleRepository.save(sale);
         auditService.log("CREATE_SALE", "MachineSale", sale.getId().toString(), "تم إنشاء عقد بيع جديد للعميل: " + customer.getName(), null);
+        realtimeEventService.broadcast("SALE", "CREATED", sale.getId(), sale.getBranchId());
         return sale;
     }
 
@@ -378,6 +380,7 @@ public class SaleService {
         }
         saleRepository.save(sale);
         auditService.log("PAY_INSTALLMENT", "MachineSale", sale.getId().toString(), "تم سداد مبلغ: " + saleActualAllocated + " بموجب إيصال: " + receiptNumber, null);
+        realtimeEventService.broadcast("SALE", "PAYMENT_ADDED", sale.getId(), sale.getBranchId());
 
         return Map.of("receiptNumber", receiptNumber, "amount", amount);
     }
@@ -451,6 +454,7 @@ public class SaleService {
         }
         sale = saleRepository.save(sale);
         auditService.log("UPDATE_SALE", "MachineSale", sale.getId().toString(), "تم تعديل بيانات العقد", null);
+        realtimeEventService.broadcast("SALE", "UPDATED", sale.getId(), sale.getBranchId());
         return sale;
     }
 
@@ -527,6 +531,7 @@ public class SaleService {
 
         sale = saleRepository.save(sale);
         auditService.log("RECALCULATE_SALE", "MachineSale", sale.getId().toString(), "تم إعادة جدولة وحساب أقساط العقد", null);
+        realtimeEventService.broadcast("SALE", "RECALCULATED", sale.getId(), sale.getBranchId());
         return sale;
     }
 
@@ -551,6 +556,7 @@ public class SaleService {
         }
         saleRepository.save(sale);
         auditService.log("VOID_SALE", "MachineSale", sale.getId().toString(), "تم إلغاء العقد لسبب: " + reason, null);
+        realtimeEventService.broadcast("SALE", "VOIDED", sale.getId(), sale.getBranchId());
     }
 
     @Transactional
@@ -603,6 +609,7 @@ public class SaleService {
         saleRepository.save(sale);
         
         auditService.log("EARLY_SETTLE", "MachineSale", sale.getId().toString(), "تم السداد المعجل للعقد بخصم: " + discount, null);
+        realtimeEventService.broadcast("SALE", "EARLY_SETTLED", sale.getId(), sale.getBranchId());
         return sale;
     }
 

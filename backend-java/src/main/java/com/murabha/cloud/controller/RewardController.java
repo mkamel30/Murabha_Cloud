@@ -10,6 +10,7 @@ import com.murabha.cloud.repository.MachineSaleRepository;
 import com.murabha.cloud.repository.PaymentRepository;
 import com.murabha.cloud.security.SecurityUtils;
 import com.murabha.cloud.security.UserPrincipal;
+import com.murabha.cloud.service.RealtimeEventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,6 +34,7 @@ public class RewardController {
     private final InstallmentRepository installmentRepository;
     private final MachineSaleRepository saleRepository;
     private final PaymentRepository paymentRepository;
+    private final RealtimeEventService realtimeEventService;
 
     @PostMapping("/waive-installments")
     @Transactional
@@ -88,6 +90,7 @@ public class RewardController {
                 sale.setRemainingAmount(BigDecimal.ZERO);
             }
             saleRepository.save(sale);
+            realtimeEventService.broadcast("SALE", "INSTALLMENTS_WAIVED", sale.getId(), sale.getBranchId());
         }
 
         return ResponseEntity.ok(Map.of(

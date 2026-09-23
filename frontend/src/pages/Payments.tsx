@@ -8,6 +8,7 @@ import { LoadingScreen } from '@/lib/Spinner';
 import { PrimaryButton, SecondaryButton, PageHeader, EmptyState, TableActions } from '@/lib/Actions';
 import { SearchFilterBar } from '@/lib/SearchFilterBar';
 import { Modal } from '@/lib/Modal';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 
 type PaymentTypeFilter = '' | 'CASH_SALE' | 'DOWN_PAYMENT' | 'INSTALLMENT';
 
@@ -36,6 +37,11 @@ export default function Payments() {
       setLoading(false);
     }
   };
+
+  // Real-time synchronization: automatically reload payments when any payment or sale changes
+  useRealtimeSync(['PAYMENT', 'SALE'], () => {
+    loadPayments();
+  });
 
   const filteredPayments = useMemo(() => {
     let data = payments;

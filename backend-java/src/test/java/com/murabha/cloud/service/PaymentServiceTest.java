@@ -37,6 +37,8 @@ class PaymentServiceTest {
 
     @Mock
     private AuditService auditService;
+    @Mock
+    private RealtimeEventService realtimeEventService;
 
     @InjectMocks
     private PaymentService paymentService;

@@ -12,6 +12,7 @@ import { PrimaryButton, SecondaryButton, DangerButton, PageHeader, EmptyState } 
 import { PaymentPlaceSelect } from '@/lib/PaymentPlace';
 import { SmartSelect } from '@/lib/SmartSelect';
 import { Gift, Edit2, Printer, FileCheck2 } from 'lucide-react';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 
 export default function SaleDetail() {
   const { showToast } = useToast();
@@ -116,6 +117,11 @@ export default function SaleDetail() {
       setLoading(false);
     }
   };
+
+  // Real-time synchronization: automatically reloads the sale if any payment, update, or void event occurs
+  useRealtimeSync(['SALE', 'PAYMENT', 'INSTALLMENT'], () => {
+    loadSale();
+  }, id);
 
   useEffect(() => {
     const fetchSettings = async () => {

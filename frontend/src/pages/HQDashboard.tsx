@@ -12,6 +12,7 @@ import {
   CheckCircle2, 
   Filter 
 } from 'lucide-react';
+import { useRealtimeSync } from '../context/RealtimeContext';
 
 export default function HQDashboard() {
   const { isHQ, selectedBranchId, setSelectedBranchId } = useAuth();
@@ -34,6 +35,11 @@ export default function HQDashboard() {
   useEffect(() => {
     loadStats();
   }, [selectedBranchId]);
+
+  // Real-time synchronization: automatically refresh HQ dashboard when any sale, payment, or installment changes
+  useRealtimeSync(['SALE', 'PAYMENT', 'INSTALLMENT'], () => {
+    loadStats();
+  });
 
   if (loading) return <LoadingScreen message="جاري إعداد مؤشرات الإدارة العليا..." />;
   if (!stats) return null;

@@ -7,6 +7,7 @@ import type { DashboardStats } from '@/types';
 import { ar } from '@/i18n/ar';
 import { LoadingScreen } from '@/lib/Spinner';
 import { PrimaryButton, PageHeader } from '@/lib/Actions';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 import {
   TrendingUp,
   AlertTriangle,
@@ -96,6 +97,11 @@ export default function Dashboard() {
       setLoading(false);
     }
   };
+
+  // Real-time synchronization: refresh dashboard statistics when any sale, payment, or installment changes
+  useRealtimeSync(['SALE', 'PAYMENT', 'INSTALLMENT'], () => {
+    loadStats();
+  });
 
   if (loading) {
     return <LoadingScreen message={ar.common.loading} />;

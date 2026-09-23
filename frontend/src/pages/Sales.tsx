@@ -13,6 +13,7 @@ import { PaymentPlaceSelect } from '@/lib/PaymentPlace';
 import { SearchFilterBar } from '@/lib/SearchFilterBar';
 import { SmartSelect } from '@/lib/SmartSelect';
 import { QuickAddCustomerModal } from '@/components/QuickAddCustomerModal';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 
 type SaleStatusFilter = '' | 'ACTIVE' | 'COMPLETED' | 'VOIDED';
 type SaleTypeFilter = '' | 'CASH' | 'INSTALLMENT';
@@ -179,6 +180,11 @@ export default function Sales() {
       setLoading(false);
     }
   };
+
+  // Real-time synchronization: refresh sales table when any sale, payment, or installment changes
+  useRealtimeSync(['SALE', 'PAYMENT', 'INSTALLMENT'], () => {
+    loadData();
+  });
 
   const filteredSales = useMemo(() => {
     let data = Array.isArray(sales) ? sales : [];

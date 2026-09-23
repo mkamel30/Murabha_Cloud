@@ -21,6 +21,7 @@ public class PaymentService {
     private final com.murabha.cloud.repository.MachineSaleRepository saleRepository;
     private final com.murabha.cloud.repository.InstallmentRepository installmentRepository;
     private final AuditService auditService;
+    private final RealtimeEventService realtimeEventService;
 
     @Transactional(readOnly = true)
     public List<Payment> getAll(UUID branchId, UUID saleId, Instant startDate, Instant endDate) {
@@ -58,7 +59,9 @@ public class PaymentService {
                 }
             }
         }
-        return paymentRepository.save(payment);
+        payment = paymentRepository.save(payment);
+        realtimeEventService.broadcast("PAYMENT", "UPDATED", payment.getSaleId(), payment.getBranchId());
+        return payment;
     }
 
     @Transactional
@@ -98,5 +101,6 @@ public class PaymentService {
         payment.setVoidedAt(java.time.Instant.now());
         paymentRepository.save(payment);
         auditService.log("VOID_PAYMENT", "Payment", payment.getId().toString(), "تم إلغاء الدفعة لسبب: " + reason, null);
+        realtimeEventService.broadcast("PAYMENT", "VOIDED", sale.getId(), sale.getBranchId());
     }
 }

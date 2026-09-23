@@ -9,6 +9,7 @@ import { PaymentPlaceSelect } from '@/lib/PaymentPlace';
 import { Modal } from '@/lib/Modal';
 import { useToast } from '@/lib/toast';
 import { SearchFilterBar } from '@/lib/SearchFilterBar';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 
 type StatusFilter = '' | 'unpaid' | 'overdue' | 'dueToday' | 'paid';
 
@@ -65,6 +66,11 @@ export default function Installments() {
       setLoading(false);
     }
   };
+
+  // Real-time synchronization: automatically refresh installments table when any payment, sale, or installment changes
+  useRealtimeSync(['SALE', 'PAYMENT', 'INSTALLMENT'], () => {
+    loadData();
+  });
 
   const handlePayClick = (inst: Installment) => {
     setSelectedInst(inst);

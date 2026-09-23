@@ -49,6 +49,8 @@ class SaleServiceTest {
     private com.murabha.cloud.repository.InstallmentRequestRepository installmentRequestRepository;
     @Mock
     private AuditService auditService;
+    @Mock
+    private RealtimeEventService realtimeEventService;
 
     @InjectMocks
     private SaleService saleService;

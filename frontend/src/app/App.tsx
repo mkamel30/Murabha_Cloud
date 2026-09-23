@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from '@/lib/toast';
 import { AuthProvider } from '@/context/AuthContext';
+import { RealtimeProvider } from '@/context/RealtimeContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 import Layout from './Layout';
@@ -52,8 +53,9 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <Suspense fallback={<LoadingFallback />}>
+        <RealtimeProvider>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <Suspense fallback={<LoadingFallback />}>
             <Routes>
               {/* Public Route */}
               <Route path="/login" element={<Login />} />
@@ -116,6 +118,7 @@ export default function App() {
             </Routes>
           </Suspense>
         </BrowserRouter>
+        </RealtimeProvider>
       </AuthProvider>
     </ToastProvider>
   );
