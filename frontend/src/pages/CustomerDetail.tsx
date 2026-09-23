@@ -6,6 +6,7 @@ import type { Customer } from '@/types';
 import { ar } from '@/i18n/ar';
 import { LoadingScreen } from '@/lib/Spinner';
 import { SecondaryButton, PageHeader } from '@/lib/Actions';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +28,11 @@ export default function CustomerDetail() {
       setLoading(false);
     }
   };
+
+  // Real-time synchronization: automatically reload customer profile and sales when any relevant event occurs
+  useRealtimeSync(['SALE', 'PAYMENT', 'INSTALLMENT', 'CUSTOMER'], () => {
+    loadCustomer();
+  });
 
   if (loading) {
     return <LoadingScreen message={ar.common.loading} />;

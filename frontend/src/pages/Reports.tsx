@@ -8,6 +8,7 @@ import { LoadingScreen } from '@/lib/Spinner';
 import { PageHeader, PrimaryButton, SecondaryButton } from '@/lib/Actions';
 import { SmartSelect } from '@/lib/SmartSelect';
 import { Banknote, Users } from 'lucide-react';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 
 interface MonthClosingReport {
   month: { year: number; month: number; name: string };
@@ -147,6 +148,11 @@ export default function Reports() {
   useEffect(() => {
     loadReport();
   }, [reportType, startDate, endDate, selectedYear, selectedMonth, saleTypeFilter, paymentTypeFilter, paymentPlaceFilter]);
+
+  // Real-time synchronization: automatically refresh reports when any sale, payment, or installment changes
+  useRealtimeSync(['SALE', 'PAYMENT', 'INSTALLMENT'], () => {
+    loadReport();
+  });
 
   const handleExport = async () => {
     try {

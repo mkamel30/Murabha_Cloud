@@ -39,6 +39,7 @@ public class InstallmentRequestService {
     private final DynamicMailService mailService;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
+    private final RealtimeEventService realtimeEventService;
 
     public WorkflowSettingsDto getWorkflowSettings() {
         return settingRepository.findById("workflow_approval_config")
@@ -135,6 +136,8 @@ public class InstallmentRequestService {
             log.warn("Could not send email alert for request {}: {}", req.getRequestNumber(), e.getMessage());
         }
 
+        req = requestRepository.save(req);
+        realtimeEventService.broadcast("INSTALLMENT_REQUEST", "CREATED", req.getId(), req.getBranchId());
         return req;
     }
 
@@ -200,7 +203,9 @@ public class InstallmentRequestService {
             notifyApproved(req);
         }
 
-        return requestRepository.save(req);
+        InstallmentRequest saved = requestRepository.save(req);
+        realtimeEventService.broadcast("INSTALLMENT_REQUEST", "UPDATED", saved.getId(), saved.getBranchId());
+        return saved;
     }
 
     @Transactional
@@ -226,7 +231,9 @@ public class InstallmentRequestService {
                 "/installment-requests"
         );
 
-        return requestRepository.save(req);
+        InstallmentRequest saved = requestRepository.save(req);
+        realtimeEventService.broadcast("INSTALLMENT_REQUEST", "UPDATED", saved.getId(), saved.getBranchId());
+        return saved;
     }
 
     @Transactional
@@ -265,6 +272,7 @@ public class InstallmentRequestService {
         req.setDownPaymentReceipt(receipt.trim());
         appendHistory(req, user, "CONVERTED_TO_SALE", "تم تسجيل إيصال المقدم رقم: " + receipt + " وتوليد العقد رقم: " + sale.getReceiptNumber());
         requestRepository.save(req);
+        realtimeEventService.broadcast("INSTALLMENT_REQUEST", "CONVERTED", req.getId(), req.getBranchId());
 
         return sale;
     }

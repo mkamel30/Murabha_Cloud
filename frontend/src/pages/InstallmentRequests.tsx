@@ -18,6 +18,7 @@ import { installmentRequestsApi, customersApi, salesApi } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/lib/toast';
 import { formatCurrency } from '@/lib/utils';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 import { Modal } from '@/lib/Modal';
 import { SmartSelect } from '@/lib/SmartSelect';
 import { PaymentPlaceSelect } from '@/lib/PaymentPlace';
@@ -159,6 +160,11 @@ export default function InstallmentRequests() {
       .then((data) => setCustomers(data))
       .catch((err) => console.error('Failed to load customers:', err));
   }, []);
+
+  // Real-time synchronization: automatically reload installment requests
+  useRealtimeSync(['INSTALLMENT_REQUEST', 'SALE'], () => {
+    loadRequests();
+  });
 
   const checkSerial = async (serial: string) => {
     const s = serial.trim().toUpperCase();

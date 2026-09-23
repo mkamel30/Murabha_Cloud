@@ -8,6 +8,7 @@ import { LoadingScreen } from '@/lib/Spinner';
 import { Modal } from '@/lib/Modal';
 import { PrimaryButton, SecondaryButton, DangerButton, Toolbar, PageHeader, EmptyState, TableActions } from '@/lib/Actions';
 import { Sparkles } from 'lucide-react';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 
 export default function Customers() {
   const { showToast } = useToast();
@@ -38,6 +39,11 @@ export default function Customers() {
       loadCustomers(search);
     }, 300);
   }, [search, loadCustomers]);
+
+  // Real-time synchronization: automatically reload customers list
+  useRealtimeSync(['CUSTOMER', 'SALE'], () => {
+    loadCustomers(search);
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

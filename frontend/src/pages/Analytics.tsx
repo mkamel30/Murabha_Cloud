@@ -7,6 +7,7 @@ import { TrendingUp, Users, DollarSign, Calendar, AlertTriangle, Briefcase, Acti
 import { analyticsApi } from '@/api/client';
 import { formatCurrency } from '@/lib/utils';
 import { LoadingScreen } from '@/lib/Spinner';
+import { useRealtimeSync } from '@/context/RealtimeContext';
 
 // Modern Color Palette
 const COLORS = ['#0A2472', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#EC4899'];
@@ -23,6 +24,11 @@ export default function Analytics() {
   useEffect(() => {
     fetchData();
   }, [startDate, endDate]);
+
+  // Real-time synchronization: automatically refresh analytics when any sale, payment, or installment changes
+  useRealtimeSync(['SALE', 'PAYMENT', 'INSTALLMENT'], () => {
+    fetchData();
+  });
 
   const fetchData = async () => {
     setLoading(true);

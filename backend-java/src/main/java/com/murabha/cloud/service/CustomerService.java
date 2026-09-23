@@ -23,6 +23,7 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final MachineSaleRepository saleRepository;
+    private final RealtimeEventService realtimeEventService;
 
     @Transactional(readOnly = true)
     public List<CustomerDto> getAll(String search, UUID branchId) {
@@ -63,7 +64,9 @@ public class CustomerService {
                 .branchId(branchId != null ? branchId : dto.getBranchId())
                 .build();
 
-        return toDto(customerRepository.save(customer));
+        Customer saved = customerRepository.save(customer);
+        realtimeEventService.broadcast("CUSTOMER", "CREATED", saved.getId(), saved.getBranchId());
+        return toDto(saved);
     }
 
     @Transactional
@@ -86,7 +89,9 @@ public class CustomerService {
         if (dto.getNotes() != null) customer.setNotes(dto.getNotes());
         if (dto.getDepartment() != null) customer.setDepartment(dto.getDepartment());
 
-        return toDto(customerRepository.save(customer));
+        Customer saved = customerRepository.save(customer);
+        realtimeEventService.broadcast("CUSTOMER", "UPDATED", saved.getId(), saved.getBranchId());
+        return toDto(saved);
     }
 
     @Transactional
@@ -97,7 +102,9 @@ public class CustomerService {
         if (hasActiveSales) {
             throw new BadRequestException("لا يمكن حذف العميل لوجود عقود مبيعات نشطة مسجلة له");
         }
+        UUID branchId = customer.getBranchId();
         customerRepository.delete(customer);
+        realtimeEventService.broadcast("CUSTOMER", "DELETED", id, branchId);
     }
 
     @Transactional(readOnly = true)
