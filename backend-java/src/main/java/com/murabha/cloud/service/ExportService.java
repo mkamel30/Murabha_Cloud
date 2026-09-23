@@ -343,7 +343,6 @@ public class ExportService {
         sb.append("  <div class='sig-box'>إدارة الفرع / ممثل المبيعات<div class='sig-line'>التوقيع والختم الرسمي</div></div>");
         sb.append("</div>");
 
-        sb.append("<div class='footer'>تم إصدار هذا العقد إلكترونياً عبر منظومة شركة تطبيقات الكروت الذكية - سمارت — شكراً لتعاملكم معنا</div>");
         sb.append("</div>");
 
         sb.append("<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };</script>");
@@ -491,7 +490,7 @@ public class ExportService {
         sb.append("</div>");
 
         sb.append("<div class='footer'>");
-        sb.append("  صدرت هذه الشهادة الرسمية بناءً على طلب العميل لتقديمها إلى من يهمه الأمر دون أي مسؤولية على الشركة تجاه حقوق الغير — شركة تطبيقات الكروت الذكية (سمارت)");
+        sb.append("  صدرت هذه الشهادة الرسمية بناءً على طلب العميل لتقديمها إلى من يهمه الأمر دون أي مسؤولية على الشركة تجاه حقوق الغير.");
         sb.append("</div>");
 
         sb.append("</div>");
