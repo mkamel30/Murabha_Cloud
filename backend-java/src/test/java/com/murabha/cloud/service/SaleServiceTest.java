@@ -46,6 +46,8 @@ class SaleServiceTest {
     @Mock
     private com.murabha.cloud.repository.SystemSettingRepository systemSettingRepository;
     @Mock
+    private com.murabha.cloud.repository.InstallmentRequestRepository installmentRequestRepository;
+    @Mock
     private AuditService auditService;
 
     @InjectMocks
@@ -101,6 +103,7 @@ class SaleServiceTest {
 
         when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
         when(saleRepository.findByMachineSerialIgnoreCaseAndStatusNot(anyString(), anyString())).thenReturn(Collections.emptyList());
+        when(installmentRequestRepository.findByMachineSerialIgnoreCaseAndStatusIn(anyString(), anyList())).thenReturn(Collections.emptyList());
         when(paymentRepository.findByReceiptNumber(anyString())).thenReturn(Optional.empty());
         when(saleRepository.findByReceiptNumber(anyString())).thenReturn(Optional.empty());
         

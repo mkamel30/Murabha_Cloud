@@ -1,4 +1,4 @@
-﻿name: Backend Java CI
+name: Backend Java CI
 
 on:
   push:
@@ -43,3 +43,10 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw clean test
+
+      - name: Print Test Failures
+        if: failure()
+        run: |
+          for f in backend-java/target/surefire-reports/*.txt; do
+            [ -f "$f" ] && echo "================ $f ================" && cat "$f"
+          done
