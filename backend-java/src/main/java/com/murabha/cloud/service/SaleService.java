@@ -315,17 +315,31 @@ public class SaleService {
                 .build();
         payment = paymentRepository.save(payment);
 
-        // FIFO Allocation across unpaid installments, but prioritize targeted installments first
+        // Strict Sequential FIFO Allocation across installments
         List<Installment> installments = installmentRepository.findBySaleIdOrderByInstallmentNoAsc(sale.getId());
+
+        // Validate targeted installments do not skip prior unpaid installments
         if (req.getInstallmentIds() != null && !req.getInstallmentIds().isEmpty()) {
-            List<Installment> targeted = new ArrayList<>();
-            List<Installment> others = new ArrayList<>();
-            for (Installment inst : installments) {
-                if (req.getInstallmentIds().contains(inst.getId())) targeted.add(inst);
-                else others.add(inst);
+            for (UUID targetId : req.getInstallmentIds()) {
+                Installment target = installments.stream()
+                        .filter(i -> i.getId() != null && i.getId().equals(targetId))
+                        .findFirst()
+                        .orElse(null);
+                if (target != null && target.getInstallmentNo() != null) {
+                    List<Installment> priorUnpaid = installments.stream()
+                            .filter(i -> i.getInstallmentNo() != null
+                                    && i.getInstallmentNo() < target.getInstallmentNo()
+                                    && !Boolean.TRUE.equals(i.getIsPaid())
+                                    && !Boolean.TRUE.equals(i.getIsWaived()))
+                            .toList();
+                    if (!priorUnpaid.isEmpty()) {
+                        Installment earliest = priorUnpaid.get(0);
+                        throw new BadRequestException(String.format(
+                                "لا يمكن سداد القسط رقم (%d) لوجود أقساط سابقة مستحقة لم يتم سدادها بعد (قسط رقم %d). يرجى سداد الأقساط بالترتيب الزمني.",
+                                target.getInstallmentNo(), earliest.getInstallmentNo()));
+                    }
+                }
             }
-            installments = targeted;
-            installments.addAll(others);
         }
         
         BigDecimal remainingToAllocate = amount;

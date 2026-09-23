@@ -93,7 +93,24 @@ export default function Installments() {
     return Array.from(deps).map((d) => ({ value: d, label: d }));
   }, [installments]);
 
+  // Map each sale to the ID of its earliest unpaid installment
+  const firstUnpaidInstallmentBySale = useMemo(() => {
+    const map = new Map<string, string>();
+    const sorted = [...installments].sort((a, b) => (a.installmentNo || 0) - (b.installmentNo || 0));
+    for (const inst of sorted) {
+      if (!inst.isPaid && !inst.isWaived && !map.has(inst.saleId)) {
+        map.set(inst.saleId, inst.id);
+      }
+    }
+    return map;
+  }, [installments]);
+
   const handlePayClick = (inst: Installment) => {
+    const firstUnpaidId = firstUnpaidInstallmentBySale.get(inst.saleId);
+    if (firstUnpaidId && firstUnpaidId !== inst.id) {
+      showToast('لا يمكن سداد هذا القسط قبل سداد الأقساط السابقة المستحقة لنفس العقد أولاً.', 'error');
+      return;
+    }
     setSelectedInst(inst);
     setReceiptError('');
     setShowPayModal(true);
@@ -128,8 +145,9 @@ export default function Installments() {
       setQuickPaidAt(new Date().toISOString().split('T')[0]);
       setSelectedInst(null);
       loadData();
-    } catch (err: unknown) {
-      showToast(ar.common.error, 'error');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || ar.common.error;
+      showToast(msg, 'error');
     }
   };
 
@@ -423,9 +441,18 @@ export default function Installments() {
                       </td>
                       <td className="px-4 py-3">
                         {!inst.isPaid && (
-                          <PrimaryButton size="sm" onClick={() => handlePayClick(inst)}>
-                            {Number(inst.paidAmount) > 0 ? 'استكمال التحصيل' : ar.payments.pay}
-                          </PrimaryButton>
+                          firstUnpaidInstallmentBySale.get(inst.saleId) === inst.id ? (
+                            <PrimaryButton size="sm" onClick={() => handlePayClick(inst)}>
+                              {Number(inst.paidAmount) > 0 ? 'استكمال التحصيل' : ar.payments.pay}
+                            </PrimaryButton>
+                          ) : (
+                            <span 
+                              className="inline-flex items-center text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200/70 px-2 py-1 rounded cursor-not-allowed select-none" 
+                              title="معلق لحين سداد القسط السابق لهذا العقد بالترتيب الزمني"
+                            >
+                              معلق لسداد السابق
+                            </span>
+                          )
                         )}
                       </td>
                     </tr>
@@ -572,12 +599,21 @@ export default function Installments() {
                           </td>
                           <td className="px-4 py-2 text-center">
                             {!inst.isPaid && (
-                              <button 
-                                onClick={() => handlePayClick(inst)}
-                                className="text-blue-600 hover:text-blue-800 text-xs font-bold"
-                              >
-                                تحصيل
-                              </button>
+                              firstUnpaidInstallmentBySale.get(inst.saleId) === inst.id ? (
+                                <button 
+                                  onClick={() => handlePayClick(inst)}
+                                  className="text-blue-600 hover:text-blue-800 text-xs font-bold"
+                                >
+                                  تحصيل
+                                </button>
+                              ) : (
+                                <span 
+                                  className="inline-flex items-center text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded cursor-not-allowed select-none"
+                                  title="معلق لحين سداد القسط السابق لهذا العقد بالترتيب الزمني"
+                                >
+                                  معلق
+                                </span>
+                              )
                             )}
                           </td>
                         </tr>

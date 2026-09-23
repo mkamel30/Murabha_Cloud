@@ -161,6 +161,7 @@ class SaleServiceTest {
 
         Installment inst1 = Installment.builder()
                 .id(UUID.randomUUID())
+                .installmentNo(1)
                 .amount(BigDecimal.valueOf(200))
                 .paidAmount(BigDecimal.ZERO)
                 .isPaid(false)
@@ -178,6 +179,47 @@ class SaleServiceTest {
         assertEquals(BigDecimal.valueOf(200), inst1.getPaidAmount());
         assertEquals(BigDecimal.valueOf(400), sale.getPaidAmount());
         assertEquals(BigDecimal.valueOf(600), sale.getRemainingAmount());
+    }
+
+    @Test
+    void testPay_OutOfOrder_Rejected() {
+        PaymentRequest req = new PaymentRequest();
+        req.setAmount(BigDecimal.valueOf(200));
+        req.setReceiptNumber("PAY-002");
+
+        UUID inst2Id = UUID.randomUUID();
+        req.setInstallmentIds(Collections.singletonList(inst2Id));
+
+        when(saleRepository.findById(saleId)).thenReturn(Optional.of(sale));
+        when(paymentRepository.findByReceiptNumber("PAY-002")).thenReturn(Optional.empty());
+        when(saleRepository.findByReceiptNumber("PAY-002")).thenReturn(Optional.empty());
+
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
+            Payment p = invocation.getArgument(0);
+            p.setId(UUID.randomUUID());
+            return p;
+        });
+
+        Installment inst1 = Installment.builder()
+                .id(UUID.randomUUID())
+                .installmentNo(1)
+                .amount(BigDecimal.valueOf(200))
+                .paidAmount(BigDecimal.ZERO)
+                .isPaid(false)
+                .build();
+
+        Installment inst2 = Installment.builder()
+                .id(inst2Id)
+                .installmentNo(2)
+                .amount(BigDecimal.valueOf(200))
+                .paidAmount(BigDecimal.ZERO)
+                .isPaid(false)
+                .build();
+
+        when(installmentRepository.findBySaleIdOrderByInstallmentNoAsc(saleId))
+                .thenReturn(List.of(inst1, inst2));
+
+        assertThrows(BadRequestException.class, () -> saleService.pay(saleId, req, userId));
     }
 
     @Test

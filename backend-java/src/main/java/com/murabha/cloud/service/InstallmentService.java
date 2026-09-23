@@ -48,6 +48,21 @@ public class InstallmentService {
         if (Boolean.TRUE.equals(installment.getIsPaid())) {
             throw new BadRequestException("القسط مدفوع بالكامل بالفعل");
         }
+
+        // Validate sequential payment: ensure no prior installment for the same sale is unpaid
+        List<Installment> priorUnpaid = installmentRepository.findBySaleIdOrderByInstallmentNoAsc(installment.getSaleId())
+                .stream()
+                .filter(i -> i.getInstallmentNo() < installment.getInstallmentNo())
+                .filter(i -> !Boolean.TRUE.equals(i.getIsPaid()) && !Boolean.TRUE.equals(i.getIsWaived()))
+                .toList();
+
+        if (!priorUnpaid.isEmpty()) {
+            Installment earliest = priorUnpaid.get(0);
+            throw new BadRequestException(String.format(
+                    "لا يمكن سداد القسط رقم (%d) لوجود أقساط سابقة مستحقة لم يتم سدادها بعد (قسط رقم %d). يرجى سداد الأقساط بالترتيب الزمني.",
+                    installment.getInstallmentNo(), earliest.getInstallmentNo()));
+        }
+
         if (req.getAmount() == null || req.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             BigDecimal remainingOnInstallment = installment.getAmount().subtract(installment.getPaidAmount());
             req.setAmount(remainingOnInstallment);
