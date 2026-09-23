@@ -22,6 +22,10 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID>, JpaSpec
 
     List<Payment> findBySaleIdOrderByPaidAtAsc(UUID saleId);
 
+    @Override
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"sale", "sale.customer"})
+    List<Payment> findAll(Specification<Payment> spec);
+
     default List<Payment> findPaymentsWithFilters(UUID branchId, UUID saleId, Instant startDate, Instant endDate) {
         Specification<Payment> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();

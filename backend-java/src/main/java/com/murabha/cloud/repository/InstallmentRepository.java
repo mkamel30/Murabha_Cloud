@@ -17,6 +17,10 @@ public interface InstallmentRepository extends JpaRepository<Installment, UUID>,
 
     List<Installment> findBySaleIdOrderByInstallmentNoAsc(UUID saleId);
 
+    @Override
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"sale", "sale.customer"})
+    List<Installment> findAll(Specification<Installment> spec);
+
     default List<Installment> findOverdueInstallments(UUID branchId, LocalDate today) {
         Specification<Installment> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();

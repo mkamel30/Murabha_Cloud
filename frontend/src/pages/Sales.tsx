@@ -32,6 +32,9 @@ export default function Sales() {
     state?.filter === 'active' ? 'ACTIVE' : ''
   );
   const [typeFilter, setTypeFilter] = useState<SaleTypeFilter>('');
+  const [customerTypeFilter, setCustomerTypeFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [sortBy, setSortBy] = useState('date-desc');
   const [showModal, setShowModal] = useState(false);
   const [showQuickCustomerModal, setShowQuickCustomerModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -52,6 +55,28 @@ export default function Sales() {
   const [step, setStep] = useState(1);
   const [serialValidation, setSerialValidation] = useState<{ loading: boolean; error: string; verified: boolean }>({ loading: false, error: '', verified: false });
   const [receiptValidation, setReceiptValidation] = useState<{ loading: boolean; error: string; verified: boolean }>({ loading: false, error: '', verified: false });
+
+  const availableCustomerTypes = useMemo(() => {
+    const set = new Set<string>();
+    sales.forEach(s => {
+      if (s.customer?.customerType) set.add(s.customer.customerType);
+    });
+    customers.forEach(c => {
+      if (c.customerType) set.add(c.customerType);
+    });
+    return Array.from(set).filter(Boolean);
+  }, [sales, customers]);
+
+  const availableDepartments = useMemo(() => {
+    const set = new Set<string>();
+    sales.forEach(s => {
+      if (s.customer?.department) set.add(s.customer.department);
+    });
+    customers.forEach(c => {
+      if (c.department) set.add(c.department);
+    });
+    return Array.from(set).filter(Boolean);
+  }, [sales, customers]);
 
   const checkSerialAvailability = async (serial: string) => {
     const s = serial.trim().toUpperCase();
@@ -193,14 +218,28 @@ export default function Sales() {
       data = data.filter((s) =>
         s.customer?.name?.toLowerCase().includes(q) ||
         s.customer?.bkCode?.toLowerCase().includes(q) ||
+        s.customer?.phone?.toLowerCase().includes(q) ||
+        s.customer?.customerType?.toLowerCase().includes(q) ||
+        s.customer?.department?.toLowerCase().includes(q) ||
         s.receiptNumber?.toLowerCase().includes(q) ||
+        s.downPaymentReceipt?.toLowerCase().includes(q) ||
         s.machineSerial?.toLowerCase().includes(q)
       );
     }
     if (statusFilter) data = data.filter((s) => s.status === statusFilter);
     if (typeFilter) data = data.filter((s) => s.saleType === typeFilter);
-    return data;
-  }, [sales, search, statusFilter, typeFilter]);
+    if (customerTypeFilter) data = data.filter((s) => s.customer?.customerType === customerTypeFilter);
+    if (departmentFilter) data = data.filter((s) => s.customer?.department === departmentFilter);
+
+    return [...data].sort((a, b) => {
+      if (sortBy === 'date-asc') return new Date(a.saleDate || a.createdAt).getTime() - new Date(b.saleDate || b.createdAt).getTime();
+      if (sortBy === 'date-desc') return new Date(b.saleDate || b.createdAt).getTime() - new Date(a.saleDate || a.createdAt).getTime();
+      if (sortBy === 'customer') return (a.customer?.name || '').localeCompare(b.customer?.name || '', 'ar');
+      if (sortBy === 'amount-desc') return (b.totalPrice || 0) - (a.totalPrice || 0);
+      if (sortBy === 'amount-asc') return (a.totalPrice || 0) - (b.totalPrice || 0);
+      return 0;
+    });
+  }, [sales, search, statusFilter, typeFilter, customerTypeFilter, departmentFilter, sortBy]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,7 +314,7 @@ export default function Sales() {
       <SearchFilterBar
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder={`${ar.common.search}...`}
+        searchPlaceholder="بحث باسم العميل، الكود، الهاتف، الماكينة، الإيصال، نوع العميل، الإدارة..."
         filters={[
           {
             key: 'status',
@@ -298,6 +337,33 @@ export default function Sales() {
               { value: 'INSTALLMENT', label: ar.sales.installment },
             ],
           },
+          {
+            key: 'customerType',
+            value: customerTypeFilter,
+            onChange: (v) => setCustomerTypeFilter(v),
+            allLabel: 'كل أنواع العملاء',
+            options: availableCustomerTypes.map(t => ({ value: t, label: t })),
+          },
+          {
+            key: 'department',
+            value: departmentFilter,
+            onChange: (v) => setDepartmentFilter(v),
+            allLabel: 'كل الإدارات',
+            options: availableDepartments.map(d => ({ value: d, label: d })),
+          },
+          {
+            key: 'sortBy',
+            value: sortBy,
+            onChange: (v) => setSortBy(v),
+            allLabel: 'ترتيب حسب',
+            options: [
+              { value: 'date-desc', label: 'الأحدث بيعاً' },
+              { value: 'date-asc', label: 'الأقدم بيعاً' },
+              { value: 'customer', label: 'اسم العميل (أ-ي)' },
+              { value: 'amount-desc', label: 'الأعلى قيمة' },
+              { value: 'amount-asc', label: 'الأقل قيمة' },
+            ],
+          },
         ]}
       />
 
@@ -308,6 +374,7 @@ export default function Sales() {
               <tr>
                 <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.sales.receiptNumber}</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.customers.title}</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">نوع العميل والإدارة</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.sales.machineSerial}</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.sales.saleType}</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.sales.totalPrice}</th>
@@ -322,7 +389,37 @@ export default function Sales() {
                     <span className="font-mono text-sm text-gray-700">{sale.downPaymentReceipt || sale.receiptNumber}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="font-medium text-gray-900">{sale.customer?.name} ({sale.customer?.bkCode})</span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-gray-900">{sale.customer?.name || 'غير معروف'}</span>
+                        {sale.customer?.bkCode && (
+                          <span className="font-mono bg-blue-100/70 text-blue-800 text-[10px] px-1.5 py-0.2 rounded font-bold">
+                            #{sale.customer.bkCode}
+                          </span>
+                        )}
+                      </div>
+                      {sale.customer?.phone && (
+                        <span className="text-xs text-slate-500 font-mono dir-ltr text-right mt-0.5">
+                          📞 {sale.customer.phone}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {sale.customer?.customerType ? (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                          {sale.customer.customerType}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs">-</span>
+                      )}
+                      {sale.customer?.department && (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                          {sale.customer.department}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 font-mono text-sm text-gray-600">{sale.machineSerial}</td>
                   <td className="px-4 py-3">
@@ -393,7 +490,11 @@ export default function Sales() {
                   </button>
                 </div>
                 <SmartSelect
-                  options={customers.map((c) => ({ id: c.id, label: c.name, sublabel: c.bkCode }))}
+                  options={customers.map((c) => ({
+                    id: c.id,
+                    label: `${c.name} (${c.bkCode || '-'})`,
+                    sublabel: [c.customerType, c.department, c.phone].filter(Boolean).join(' | '),
+                  }))}
                   value={formData.customerId}
                   onChange={(value) => setFormData({ ...formData, customerId: value })}
                   placeholder={`-- ${ar.sales.selectCustomer} --`}

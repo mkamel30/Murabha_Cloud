@@ -21,6 +21,9 @@ export default function Installments() {
   const [tab, setTab] = useState<'all' | 'overdue'>('all');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [customerTypeFilter, setCustomerTypeFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [sortBy, setSortBy] = useState('due_asc');
   const [groupBy, setGroupBy] = useState<'none' | 'customer' | 'month'>('none');
 
   const [showPayModal, setShowPayModal] = useState(false);
@@ -72,6 +75,24 @@ export default function Installments() {
     loadData();
   });
 
+  const availableCustomerTypes = useMemo(() => {
+    const types = new Set<string>();
+    installments.forEach((i) => {
+      const t = i.sale?.customer?.customerType;
+      if (t) types.add(t);
+    });
+    return Array.from(types).map((t) => ({ value: t, label: t }));
+  }, [installments]);
+
+  const availableDepartments = useMemo(() => {
+    const deps = new Set<string>();
+    installments.forEach((i) => {
+      const d = i.sale?.customer?.department;
+      if (d) deps.add(d);
+    });
+    return Array.from(deps).map((d) => ({ value: d, label: d }));
+  }, [installments]);
+
   const handlePayClick = (inst: Installment) => {
     setSelectedInst(inst);
     setReceiptError('');
@@ -120,6 +141,9 @@ export default function Installments() {
       data = data.filter((inst) =>
         inst.sale?.customer?.name?.toLowerCase().includes(q) ||
         inst.sale?.customer?.bkCode?.toLowerCase().includes(q) ||
+        inst.sale?.customer?.phone?.toLowerCase().includes(q) ||
+        inst.sale?.customer?.department?.toLowerCase().includes(q) ||
+        inst.sale?.customer?.customerType?.toLowerCase().includes(q) ||
         inst.sale?.receiptNumber?.toLowerCase().includes(q) ||
         inst.sale?.machineSerial?.toLowerCase().includes(q) ||
         String(inst.installmentNo).includes(q)
@@ -138,14 +162,31 @@ export default function Installments() {
       });
     }
 
-    return data.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-  }, [tab, installments, overdue, search, statusFilter]);
+    if (customerTypeFilter) {
+      data = data.filter((inst) => inst.sale?.customer?.customerType === customerTypeFilter);
+    }
+
+    if (departmentFilter) {
+      data = data.filter((inst) => inst.sale?.customer?.department === departmentFilter);
+    }
+
+    return [...data].sort((a, b) => {
+      if (sortBy === 'due_asc') return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      if (sortBy === 'due_desc') return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+      if (sortBy === 'amount_desc') return Number(b.amount) - Number(a.amount);
+      if (sortBy === 'amount_asc') return Number(a.amount) - Number(b.amount);
+      if (sortBy === 'customer_asc') return (a.sale?.customer?.name || '').localeCompare(b.sale?.customer?.name || '', 'ar');
+      return 0;
+    });
+  }, [tab, installments, overdue, search, statusFilter, customerTypeFilter, departmentFilter, sortBy]);
 
   const stats = useMemo(() => {
     const unpaid = filteredData.filter(i => !i.isPaid);
     const overdueItems = unpaid.filter(i => isOverdue(i.dueDate));
     const totalOverdue = overdueItems.reduce((sum, i) => sum + (Number(i.amount) - Number(i.paidAmount)), 0);
-    const uniqueCustomers = new Set(filteredData.map(i => i.sale?.customerId).filter(Boolean)).size;
+    const uniqueCustomers = new Set(
+      filteredData.map(i => i.sale?.customerId || i.sale?.customer?.id || i.sale?.customer?.bkCode).filter(Boolean)
+    ).size;
     return {
       overdueAmount: Math.round(totalOverdue),
       customerCount: uniqueCustomers,
@@ -190,7 +231,7 @@ export default function Installments() {
       <SearchFilterBar
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder={`${ar.common.search}...`}
+        searchPlaceholder="بحث باسم العميل، الكود، الهاتف، الإدارة، نوع العميل، الإيصال، السيريال..."
         filters={[
           {
             key: 'status',
@@ -204,6 +245,38 @@ export default function Installments() {
               { value: 'paid', label: ar.installments.paid },
             ],
           },
+          {
+            key: 'customerType',
+            value: customerTypeFilter,
+            onChange: setCustomerTypeFilter,
+            allLabel: 'كل أنواع العملاء',
+            options: availableCustomerTypes.length > 0 ? availableCustomerTypes : [
+              { value: 'عام', label: 'عام' },
+              { value: 'كبار عملاء', label: 'كبار عملاء' },
+              { value: 'موظف', label: 'موظف' },
+              { value: 'جهات حكومية', label: 'جهات حكومية' },
+            ],
+          },
+          {
+            key: 'department',
+            value: departmentFilter,
+            onChange: setDepartmentFilter,
+            allLabel: 'كل الإدارات',
+            options: availableDepartments,
+          },
+          {
+            key: 'sortBy',
+            value: sortBy,
+            onChange: setSortBy,
+            allLabel: 'الترتيب',
+            options: [
+              { value: 'due_asc', label: 'تاريخ الاستحقاق: الأقرب' },
+              { value: 'due_desc', label: 'تاريخ الاستحقاق: الأبعد' },
+              { value: 'amount_desc', label: 'المبلغ: من الأكبر' },
+              { value: 'amount_asc', label: 'المبلغ: من الأصغر' },
+              { value: 'customer_asc', label: 'اسم العميل: أ - ي' },
+            ],
+          },
         ]}
       />
 
@@ -213,7 +286,7 @@ export default function Installments() {
           <button
             onClick={() => setGroupBy('none')}
             className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              groupBy === 'none' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200' : 'text-slate-500 hover:text-slate-700'
+              groupBy === 'none' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200 font-bold' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {ar.common.all}
@@ -221,7 +294,7 @@ export default function Installments() {
           <button
             onClick={() => setGroupBy('customer')}
             className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              groupBy === 'customer' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200' : 'text-slate-500 hover:text-slate-700'
+              groupBy === 'customer' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200 font-bold' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {ar.customers.title}
@@ -229,7 +302,7 @@ export default function Installments() {
           <button
             onClick={() => setGroupBy('month')}
             className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              groupBy === 'month' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200' : 'text-slate-500 hover:text-slate-700'
+              groupBy === 'month' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200 font-bold' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {ar.common.month}
@@ -261,6 +334,7 @@ export default function Installments() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3 text-right text-xs font-bold text-gray-500">{ar.customers.title}</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-500">نوع العميل والإدارة</th>
                   <th className="px-4 py-3 text-right text-xs font-bold text-gray-500">رقم الماكينة</th>
                   <th className="px-4 py-3 text-right text-xs font-bold text-gray-500">{ar.installments.installmentNo}</th>
                   <th className="px-4 py-3 text-right text-xs font-bold text-gray-500">{ar.installments.dueDate}</th>
@@ -279,7 +353,33 @@ export default function Installments() {
                   return (
                     <tr key={inst.id} className={`hover:bg-gray-50 transition-colors ${isOverdueStatus ? 'bg-red-50' : isDueTodayStatus ? 'bg-orange-50' : ''}`}>
                       <td className="px-4 py-3">
-                        <span className="font-medium">{inst.sale?.customer?.name} ({inst.sale?.customer?.bkCode})</span>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-900 text-sm">
+                            {inst.sale?.customer?.name || 'غير معروف'}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                            <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[11px] font-bold text-slate-700">
+                              كود: {inst.sale?.customer?.bkCode || '-'}
+                            </span>
+                            {inst.sale?.customer?.phone && (
+                              <span className="font-mono text-slate-500 text-[11px]">
+                                📞 {inst.sale.customer.phone}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                            {inst.sale?.customer?.customerType || 'عام'}
+                          </span>
+                          {inst.sale?.customer?.department && (
+                            <span className="text-[11px] text-slate-600 font-medium truncate max-w-[140px]" title={inst.sale.customer.department}>
+                              🏛️ {inst.sale.customer.department}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs font-mono">{inst.sale?.machineSerial || '-'}</td>
                       <td className="px-4 py-3">{inst.installmentNo}</td>
@@ -345,8 +445,11 @@ export default function Installments() {
               const key = groupBy === 'customer' 
                 ? (inst.sale?.customer?.name || 'غير معروف')
                 : new Date(inst.dueDate).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
-              if (!groups[key]) groups[key] = { items: [], total: 0, count: 0 };
+              if (!groups[key]) groups[key] = { items: [], total: 0, count: 0, customer: inst.sale?.customer };
               groups[key].items.push(inst);
+              if (!groups[key].customer && inst.sale?.customer) {
+                groups[key].customer = inst.sale.customer;
+              }
               if (!inst.isPaid) {
                 groups[key].total = Math.round((groups[key].total + (Number(inst.amount) - Number(inst.paidAmount))) * 100) / 100;
                 groups[key].count++;
@@ -355,8 +458,35 @@ export default function Installments() {
             }, {})
           ).map(([groupName, group]: any) => (
             <div key={groupName} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-                <h3 className="font-bold text-[#0A2472]">{groupName} ({group.items.length} قسط)</h3>
+              <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-[#0A2472]">{groupName}</h3>
+                  {groupBy === 'customer' && group.customer && (
+                    <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                      {group.customer.bkCode && (
+                        <span className="font-mono bg-blue-100/70 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                          #{group.customer.bkCode}
+                        </span>
+                      )}
+                      {group.customer.customerType && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                          {group.customer.customerType}
+                        </span>
+                      )}
+                      {group.customer.department && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                          {group.customer.department}
+                        </span>
+                      )}
+                      {group.customer.phone && (
+                        <span className="font-mono text-slate-500 text-[11px] dir-ltr mr-1">
+                          📞 {group.customer.phone}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <span className="text-xs text-slate-500">({group.items.length} قسط)</span>
+                </div>
                 <div className="flex gap-4 text-xs">
                   <span className="font-semibold text-red-600">غير مدفوع: {group.count} ( {formatCurrency(group.total)} )</span>
                 </div>
@@ -388,8 +518,23 @@ export default function Installments() {
                           {groupBy === 'month' ? (
                             <td className="px-4 py-2">
                               <div className="flex flex-col">
-                                <span className="font-bold text-slate-800 text-xs">{inst.sale?.customer?.name} ({inst.sale?.customer?.bkCode})</span>
-                                <span className="text-[9px] text-slate-500 font-mono tracking-tight">{inst.sale?.machineSerial || '-'}</span>
+                                <span className="font-bold text-slate-800 text-xs">
+                                  {inst.sale?.customer?.name || 'غير معروف'}
+                                  {inst.sale?.customer?.bkCode ? ` (#${inst.sale.customer.bkCode})` : ''}
+                                </span>
+                                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                  {inst.sale?.customer?.customerType && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-indigo-50 text-indigo-700">
+                                      {inst.sale.customer.customerType}
+                                    </span>
+                                  )}
+                                  {inst.sale?.customer?.department && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-purple-50 text-purple-700">
+                                      {inst.sale.customer.department}
+                                    </span>
+                                  )}
+                                  <span className="text-[9px] text-slate-500 font-mono tracking-tight">{inst.sale?.machineSerial || '-'}</span>
+                                </div>
                               </div>
                             </td>
                           ) : (

@@ -25,6 +25,11 @@ export default function Payments() {
   const [editingPayment, setEditingPayment] = useState<{ id: string; receiptNumber: string; paidAt: string } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Filter and sort states
+  const [customerTypeFilter, setCustomerTypeFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
+
   // Void / Delete payment state
   const [voidingPayment, setVoidingPayment] = useState<Payment | null>(null);
   const [voidReason, setVoidReason] = useState('');
@@ -52,6 +57,24 @@ export default function Payments() {
     loadPayments();
   });
 
+  const availableCustomerTypes = useMemo(() => {
+    const types = new Set<string>();
+    payments.forEach((p) => {
+      const t = p.sale?.customer?.customerType;
+      if (t) types.add(t);
+    });
+    return Array.from(types).map((t) => ({ value: t, label: t }));
+  }, [payments]);
+
+  const availableDepartments = useMemo(() => {
+    const deps = new Set<string>();
+    payments.forEach((p) => {
+      const d = p.sale?.customer?.department;
+      if (d) deps.add(d);
+    });
+    return Array.from(deps).map((d) => ({ value: d, label: d }));
+  }, [payments]);
+
   const filteredPayments = useMemo(() => {
     let data = payments;
     if (search) {
@@ -59,17 +82,43 @@ export default function Payments() {
       data = data.filter((p) =>
         p.sale?.customer?.name?.toLowerCase().includes(q) ||
         p.sale?.customer?.bkCode?.toLowerCase().includes(q) ||
+        p.sale?.customer?.phone?.toLowerCase().includes(q) ||
+        p.sale?.customer?.department?.toLowerCase().includes(q) ||
+        p.sale?.customer?.customerType?.toLowerCase().includes(q) ||
         p.sale?.machineSerial?.toLowerCase().includes(q) ||
+        p.sale?.receiptNumber?.toLowerCase().includes(q) ||
         p.receiptNumber?.toLowerCase().includes(q)
       );
     }
     if (typeFilter) data = data.filter((p) => p.paymentType === typeFilter);
-    return data;
-  }, [payments, search, typeFilter]);
+    if (customerTypeFilter) data = data.filter((p) => p.sale?.customer?.customerType === customerTypeFilter);
+    if (departmentFilter) data = data.filter((p) => p.sale?.customer?.department === departmentFilter);
+
+    return [...data].sort((a, b) => {
+      if (sortBy === 'date_asc') {
+        return new Date(a.paidAt).getTime() - new Date(b.paidAt).getTime();
+      }
+      if (sortBy === 'date_desc') {
+        return new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime();
+      }
+      if (sortBy === 'amount_desc') {
+        return Number(b.amount) - Number(a.amount);
+      }
+      if (sortBy === 'amount_asc') {
+        return Number(a.amount) - Number(b.amount);
+      }
+      if (sortBy === 'customer_asc') {
+        return (a.sale?.customer?.name || '').localeCompare(b.sale?.customer?.name || '', 'ar');
+      }
+      return 0;
+    });
+  }, [payments, search, typeFilter, customerTypeFilter, departmentFilter, sortBy]);
 
   const stats = useMemo(() => {
     const totalCollected = filteredPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const uniqueCustomers = new Set(filteredPayments.map(p => p.sale?.customerId).filter(Boolean)).size;
+    const uniqueCustomers = new Set(
+      filteredPayments.map(p => p.sale?.customerId || p.sale?.customer?.id || p.sale?.customer?.bkCode).filter(Boolean)
+    ).size;
     return {
       totalAmount: Math.round(totalCollected),
       customerCount: uniqueCustomers,
@@ -152,7 +201,7 @@ export default function Payments() {
       <SearchFilterBar
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder={`${ar.common.search}...`}
+        searchPlaceholder="بحث بالاسم، الكود، الهاتف، الإدارة، نوع العميل، الإيصال..."
         filters={[
           {
             key: 'type',
@@ -165,6 +214,38 @@ export default function Payments() {
               { value: 'INSTALLMENT', label: ar.payments.installment },
             ],
           },
+          {
+            key: 'customerType',
+            value: customerTypeFilter,
+            onChange: setCustomerTypeFilter,
+            allLabel: 'كل أنواع العملاء',
+            options: availableCustomerTypes.length > 0 ? availableCustomerTypes : [
+              { value: 'عام', label: 'عام' },
+              { value: 'كبار عملاء', label: 'كبار عملاء' },
+              { value: 'موظف', label: 'موظف' },
+              { value: 'جهات حكومية', label: 'جهات حكومية' },
+            ],
+          },
+          {
+            key: 'department',
+            value: departmentFilter,
+            onChange: setDepartmentFilter,
+            allLabel: 'كل الإدارات',
+            options: availableDepartments,
+          },
+          {
+            key: 'sortBy',
+            value: sortBy,
+            onChange: setSortBy,
+            allLabel: 'الترتيب',
+            options: [
+              { value: 'date_desc', label: 'التاريخ: الأحدث أولاً' },
+              { value: 'date_asc', label: 'التاريخ: الأقدم أولاً' },
+              { value: 'amount_desc', label: 'المبلغ: من الأكبر' },
+              { value: 'amount_asc', label: 'المبلغ: من الأصغر' },
+              { value: 'customer_asc', label: 'اسم العميل: أ - ي' },
+            ],
+          },
         ]}
       />
 
@@ -174,7 +255,7 @@ export default function Payments() {
           <button
             onClick={() => setGroupBy('none')}
             className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              groupBy === 'none' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200' : 'text-slate-500 hover:text-slate-700'
+              groupBy === 'none' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200 font-bold' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {ar.common.all}
@@ -182,7 +263,7 @@ export default function Payments() {
           <button
             onClick={() => setGroupBy('customer')}
             className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              groupBy === 'customer' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200' : 'text-slate-500 hover:text-slate-700'
+              groupBy === 'customer' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200 font-bold' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {ar.customers.title}
@@ -190,7 +271,7 @@ export default function Payments() {
           <button
             onClick={() => setGroupBy('month')}
             className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              groupBy === 'month' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200' : 'text-slate-500 hover:text-slate-700'
+              groupBy === 'month' ? 'bg-white shadow-sm text-[#0A2472] border border-slate-200 font-bold' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {ar.common.month}
@@ -223,6 +304,7 @@ export default function Payments() {
                 <tr>
                   <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.payments.receiptNumber}</th>
                   <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.customers.title}</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">نوع العميل والإدارة</th>
                   <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.payments.paymentType}</th>
                   <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.payments.amount}</th>
                   <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">{ar.payments.paymentPlace}</th>
@@ -233,8 +315,38 @@ export default function Payments() {
              <tbody className="divide-y divide-gray-200">
                {filteredPayments.map((payment) => (
                  <tr key={payment.id} className="hover:bg-gray-50">
-                   <td className="px-4 py-3 whitespace-nowrap font-mono text-sm">{payment.receiptNumber}</td>
-                   <td className="px-4 py-3">{payment.sale?.customer?.name} ({payment.sale?.customer?.bkCode})</td>
+                   <td className="px-4 py-3 whitespace-nowrap font-mono text-sm font-bold text-slate-800">
+                     {payment.receiptNumber}
+                   </td>
+                   <td className="px-4 py-3">
+                     <div className="flex flex-col">
+                       <span className="font-bold text-slate-900 text-sm">
+                         {payment.sale?.customer?.name || 'غير معروف'}
+                       </span>
+                       <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                         <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[11px] font-bold text-slate-700">
+                           كود: {payment.sale?.customer?.bkCode || '-'}
+                         </span>
+                         {payment.sale?.customer?.phone && (
+                           <span className="font-mono text-slate-500 text-[11px]">
+                             📞 {payment.sale.customer.phone}
+                           </span>
+                         )}
+                       </div>
+                     </div>
+                   </td>
+                   <td className="px-4 py-3">
+                     <div className="flex flex-col gap-1 items-start">
+                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                         {payment.sale?.customer?.customerType || 'عام'}
+                       </span>
+                       {payment.sale?.customer?.department && (
+                         <span className="text-[11px] text-slate-600 font-medium truncate max-w-[150px]" title={payment.sale.customer.department}>
+                           🏛️ {payment.sale.customer.department}
+                         </span>
+                       )}
+                     </div>
+                   </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col">
                         <span className={`px-2 py-1 rounded text-xs font-medium w-fit ${payment.paymentType === 'CASH_SALE' ? 'bg-blue-50 text-blue-700' : payment.paymentType === 'DOWN_PAYMENT' ? 'bg-purple-50 text-purple-700' : 'bg-green-50 text-green-700'}`}>
@@ -247,7 +359,7 @@ export default function Payments() {
                     </td>
                    <td className="px-4 py-3 font-bold text-teal-600">{formatCurrency(payment.amount)}</td>
                    <td className="px-4 py-3">{formatPaymentPlace(payment.paymentPlace)}</td>
-                   <td className="px-4 py-3">{formatDate(payment.paidAt)}</td>
+                   <td className="px-4 py-3 text-slate-600 text-sm">{formatDate(payment.paidAt)}</td>
                    <td className="px-4 py-3">
                       <TableActions>
                         <SecondaryButton size="sm" onClick={() => handlePrintReceipt(payment.id)}>
@@ -280,10 +392,11 @@ export default function Payments() {
         <div className="space-y-6">
           {Object.entries(
             filteredPayments.reduce((groups: any, pay) => {
+              const cust = pay.sale?.customer;
               const key = groupBy === 'customer' 
-                ? `${pay.sale?.customer?.name || 'غير معروف'} (${pay.sale?.customer?.bkCode || '-'})`
+                ? (cust ? `${cust.name} (${cust.bkCode})` : 'عميل غير محدد (-)')
                 : new Date(pay.paidAt).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
-              if (!groups[key]) groups[key] = { items: [], total: 0 };
+              if (!groups[key]) groups[key] = { items: [], total: 0, customer: cust };
               groups[key].items.push(pay);
               groups[key].total = Math.round((groups[key].total + Number(pay.amount || 0)) * 100) / 100;
               return groups;
@@ -292,12 +405,31 @@ export default function Payments() {
             <div key={groupName} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="bg-emerald-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
                 <div className="flex flex-col gap-0.5">
-                  <h3 className="font-bold text-emerald-800 text-sm">{groupName} ({group.items.length} تحصيل)</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-emerald-800 text-sm">{groupName} ({group.items.length} تحصيل)</h3>
+                    {groupBy === 'customer' && group.customer && (
+                      <>
+                        <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">
+                          {group.customer.customerType || 'عام'}
+                        </span>
+                        {group.customer.department && (
+                          <span className="text-[10px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full font-bold">
+                            🏛️ {group.customer.department}
+                          </span>
+                        )}
+                        {group.customer.phone && (
+                          <span className="text-[10px] bg-white text-slate-600 px-2 py-0.5 rounded-full font-mono border">
+                            📞 {group.customer.phone}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
                   {groupBy === 'customer' && (() => {
                     const months = [...new Set(group.items.map((p: any) => p.sale?.months).filter(Boolean))];
                     if (months.length > 0) {
                       return (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 mt-1">
                           <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
                             {months.length === 1 
                               ? `نظام تقسيط ${months[0]} شهر` 
@@ -309,7 +441,7 @@ export default function Payments() {
                     return null;
                   })()}
                 </div>
-                <div className="font-bold text-emerald-700">إجمالي: {formatCurrency(group.total)}</div>
+                <div className="font-bold text-emerald-700 font-mono">إجمالي: {formatCurrency(group.total)}</div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -317,7 +449,10 @@ export default function Payments() {
                     <tr>
                       <th className="px-4 py-2 text-right text-xs text-slate-500">الإيصال</th>
                       {groupBy === 'month' && (
-                        <th className="px-4 py-2 text-right text-xs text-slate-500">العميل / الماكينة</th>
+                        <>
+                          <th className="px-4 py-2 text-right text-xs text-slate-500">العميل / الماكينة</th>
+                          <th className="px-4 py-2 text-right text-xs text-slate-500">نوع العميل والإدارة</th>
+                        </>
                       )}
                       <th className="px-4 py-2 text-right text-xs text-slate-500">النوع</th>
                       <th className="px-4 py-2 text-right text-xs text-slate-500">المبلغ</th>
@@ -328,14 +463,24 @@ export default function Payments() {
                   <tbody className="divide-y divide-slate-100">
                     {group.items.map((pay: any) => (
                       <tr key={pay.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-2 font-mono">{pay.receiptNumber}</td>
+                        <td className="px-4 py-2 font-mono font-bold text-slate-800">{pay.receiptNumber}</td>
                         {groupBy === 'month' && (
-                          <td className="px-4 py-2">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-slate-800 text-xs">{pay.sale?.customer?.name}</span>
-                              <span className="text-[9px] text-slate-500 font-mono tracking-tight">{pay.sale?.machineSerial || '-'}</span>
-                            </div>
-                          </td>
+                          <>
+                            <td className="px-4 py-2">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-slate-800 text-xs">{pay.sale?.customer?.name || 'غير معروف'}</span>
+                                <span className="text-[10px] text-slate-500 font-mono">كود: {pay.sale?.customer?.bkCode || '-'} | {pay.sale?.machineSerial || '-'}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[10px] font-bold text-blue-700">{pay.sale?.customer?.customerType || 'عام'}</span>
+                                {pay.sale?.customer?.department && (
+                                  <span className="text-[10px] text-slate-500">🏛️ {pay.sale.customer.department}</span>
+                                )}
+                              </div>
+                            </td>
+                          </>
                         )}
                         <td className="px-4 py-2 text-xs">
                            {pay.paymentType === 'CASH_SALE' ? 'كامل' : pay.paymentType === 'DOWN_PAYMENT' ? 'مقدم' : 'قسط'}

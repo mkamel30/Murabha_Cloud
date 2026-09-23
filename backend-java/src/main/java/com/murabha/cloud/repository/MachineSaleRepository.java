@@ -24,7 +24,16 @@ public interface MachineSaleRepository extends JpaRepository<MachineSale, UUID>,
 
     List<MachineSale> findByMachineSerialIgnoreCaseAndStatusNot(String machineSerial, String status);
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"customer"})
     List<MachineSale> findByCustomerIdOrderBySaleDateDesc(UUID customerId);
+
+    @Override
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"customer"})
+    List<MachineSale> findAll(Specification<MachineSale> spec);
+
+    @Override
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"customer"})
+    Page<MachineSale> findAll(Specification<MachineSale> spec, Pageable pageable);
 
     @org.springframework.data.jpa.repository.Query("""
         SELECT

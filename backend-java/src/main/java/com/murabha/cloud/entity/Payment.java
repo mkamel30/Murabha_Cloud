@@ -38,7 +38,7 @@ public class Payment {
     @Column(name = "sale_id", nullable = false)
     private UUID saleId;
 
-    @JsonIgnore
+    @JsonIgnoreProperties({"installments", "payments", "hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sale_id", insertable = false, updatable = false)
     private MachineSale sale;

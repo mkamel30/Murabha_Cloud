@@ -73,6 +73,9 @@ export default function Reports() {
   const [saleTypeFilter, setSaleTypeFilter] = useState('');
   const [paymentTypeFilter, setPaymentTypeFilter] = useState('');
   const [paymentPlaceFilter, setPaymentPlaceFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const [customerTypeFilter, setCustomerTypeFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
   const [customerStatement, setCustomerStatement] = useState<{ customer: Customer; sales: any[]; summary: any } | null>(null);
   const [expandedSales, setExpandedSales] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState<'none' | 'customer' | 'month'>('none');
@@ -205,6 +208,84 @@ export default function Reports() {
     loadCustomerStatement();
   }, [selectedCustomer]);
 
+  const availableCustomerTypes = React.useMemo(() => {
+    const set = new Set<string>();
+    customers.forEach(c => { if (c.customerType) set.add(c.customerType); });
+    salesReport?.sales?.forEach(s => { if (s.customer?.customerType) set.add(s.customer.customerType); });
+    collectionsReport?.payments?.forEach(p => { if (p.sale?.customer?.customerType) set.add(p.sale.customer.customerType); });
+    overdueReport?.overdue?.forEach(o => { if (o.sale?.customer?.customerType) set.add(o.sale.customer.customerType); });
+    return Array.from(set).filter(Boolean);
+  }, [customers, salesReport, collectionsReport, overdueReport]);
+
+  const availableDepartments = React.useMemo(() => {
+    const set = new Set<string>();
+    customers.forEach(c => { if (c.department) set.add(c.department); });
+    salesReport?.sales?.forEach(s => { if (s.customer?.department) set.add(s.customer.department); });
+    collectionsReport?.payments?.forEach(p => { if (p.sale?.customer?.department) set.add(p.sale.customer.department); });
+    overdueReport?.overdue?.forEach(o => { if (o.sale?.customer?.department) set.add(o.sale.customer.department); });
+    return Array.from(set).filter(Boolean);
+  }, [customers, salesReport, collectionsReport, overdueReport]);
+
+  const filteredSalesData = React.useMemo(() => {
+    if (!salesReport?.sales) return [];
+    let list = salesReport.sales;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(s =>
+        s.customer?.name?.toLowerCase().includes(q) ||
+        s.customer?.bkCode?.toLowerCase().includes(q) ||
+        s.customer?.phone?.toLowerCase().includes(q) ||
+        s.customer?.customerType?.toLowerCase().includes(q) ||
+        s.customer?.department?.toLowerCase().includes(q) ||
+        s.receiptNumber?.toLowerCase().includes(q) ||
+        s.machineSerial?.toLowerCase().includes(q)
+      );
+    }
+    if (customerTypeFilter) list = list.filter(s => s.customer?.customerType === customerTypeFilter);
+    if (departmentFilter) list = list.filter(s => s.customer?.department === departmentFilter);
+    return list;
+  }, [salesReport, search, customerTypeFilter, departmentFilter]);
+
+  const filteredCollectionsData = React.useMemo(() => {
+    if (!collectionsReport?.payments) return [];
+    let list = collectionsReport.payments;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(p =>
+        p.sale?.customer?.name?.toLowerCase().includes(q) ||
+        p.sale?.customer?.bkCode?.toLowerCase().includes(q) ||
+        p.sale?.customer?.phone?.toLowerCase().includes(q) ||
+        p.sale?.customer?.customerType?.toLowerCase().includes(q) ||
+        p.sale?.customer?.department?.toLowerCase().includes(q) ||
+        p.receiptNumber?.toLowerCase().includes(q) ||
+        p.sale?.machineSerial?.toLowerCase().includes(q)
+      );
+    }
+    if (customerTypeFilter) list = list.filter(p => p.sale?.customer?.customerType === customerTypeFilter);
+    if (departmentFilter) list = list.filter(p => p.sale?.customer?.department === departmentFilter);
+    return list;
+  }, [collectionsReport, search, customerTypeFilter, departmentFilter]);
+
+  const filteredOverdueData = React.useMemo(() => {
+    if (!overdueReport?.overdue) return [];
+    let list = overdueReport.overdue;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(o =>
+        o.sale?.customer?.name?.toLowerCase().includes(q) ||
+        o.sale?.customer?.bkCode?.toLowerCase().includes(q) ||
+        o.sale?.customer?.phone?.toLowerCase().includes(q) ||
+        o.sale?.customer?.customerType?.toLowerCase().includes(q) ||
+        o.sale?.customer?.department?.toLowerCase().includes(q) ||
+        o.sale?.receiptNumber?.toLowerCase().includes(q) ||
+        o.sale?.machineSerial?.toLowerCase().includes(q)
+      );
+    }
+    if (customerTypeFilter) list = list.filter(o => o.sale?.customer?.customerType === customerTypeFilter);
+    if (departmentFilter) list = list.filter(o => o.sale?.customer?.department === departmentFilter);
+    return list;
+  }, [overdueReport, search, customerTypeFilter, departmentFilter]);
+
   if (loading) {
     return <LoadingScreen message={ar.common.loading} />;
   }
@@ -305,11 +386,22 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Date Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 flex gap-4 items-center flex-wrap">
+      {/* Date & Search Filters */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 flex gap-3 items-center flex-wrap">
+        <div className="flex-1 min-w-[220px]">
+          <label className="block text-xs text-slate-500 mb-1">بحث سريع</label>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="بحث بالعميل، الكود، الهاتف، الإدارة، الماكينة..."
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+          />
+        </div>
+
         {reportType !== 'monthClosing' && (
           <>
-            <div className="min-w-[140px]">
+            <div className="min-w-[130px]">
               <label className="block text-xs text-slate-500 mb-1">{ar.reports.from}</label>
               <input
                 type="date"
@@ -318,7 +410,7 @@ export default function Reports() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
               />
             </div>
-            <div className="min-w-[140px]">
+            <div className="min-w-[130px]">
               <label className="block text-xs text-slate-500 mb-1">{ar.reports.to}</label>
               <input
                 type="date"
@@ -329,13 +421,41 @@ export default function Reports() {
             </div>
           </>
         )}
-        
-        <SecondaryButton onClick={handleExport} className={reportType === 'monthClosing' ? '' : 'mt-5'}>
-          {ar.reports.exportExcel}
-        </SecondaryButton>
-        
+
+        {availableCustomerTypes.length > 0 && (
+          <div className="min-w-[130px]">
+            <label className="block text-xs text-slate-500 mb-1">نوع العميل</label>
+            <select
+              value={customerTypeFilter}
+              onChange={(e) => setCustomerTypeFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+            >
+              <option value="">كل أنواع العملاء</option>
+              {availableCustomerTypes.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {availableDepartments.length > 0 && (
+          <div className="min-w-[130px]">
+            <label className="block text-xs text-slate-500 mb-1">الإدارة</label>
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+            >
+              <option value="">كل الإدارات</option>
+              {availableDepartments.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {reportType === 'sales' && (
-          <div className="min-w-[140px]">
+          <div className="min-w-[130px]">
             <label className="block text-xs text-slate-500 mb-1">{ar.sales.saleType}</label>
             <select
               value={saleTypeFilter}
@@ -351,7 +471,7 @@ export default function Reports() {
         
         {reportType === 'collections' && (
           <>
-            <div className="min-w-[140px]">
+            <div className="min-w-[130px]">
               <label className="block text-xs text-slate-500 mb-1">{ar.payments.paymentType}</label>
               <select
                 value={paymentTypeFilter}
@@ -364,7 +484,7 @@ export default function Reports() {
                 <option value="INSTALLMENT">{ar.payments.installment}</option>
               </select>
             </div>
-            <div className="min-w-[140px]">
+            <div className="min-w-[130px]">
               <label className="block text-xs text-slate-500 mb-1">{ar.payments.paymentPlace}</label>
               <select
                 value={paymentPlaceFilter}
@@ -380,7 +500,7 @@ export default function Reports() {
           </>
         )}
 
-        <div className="min-w-[140px]">
+        <div className="min-w-[120px]">
           <label className="block text-xs text-slate-500 mb-1">تجميع حسب</label>
           <select
             value={groupBy}
@@ -392,6 +512,10 @@ export default function Reports() {
             <option value="month">الشهر</option>
           </select>
         </div>
+
+        <SecondaryButton onClick={handleExport} className="mt-5">
+          {ar.reports.exportExcel}
+        </SecondaryButton>
       </div>
 
       {/* Sales Report */}
@@ -400,27 +524,27 @@ export default function Reports() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.reports.totalSales}</div>
-              <div className="text-xl font-bold">{salesReport.summary.totalSales} <span className="text-xs font-normal">عملية</span></div>
+              <div className="text-xl font-bold">{filteredSalesData.length} <span className="text-xs font-normal">عملية</span></div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.sales.cash}</div>
-              <div className="text-xl font-bold text-blue-600">{salesReport.summary.cashSales} <span className="text-xs font-normal">عملية</span></div>
+              <div className="text-xl font-bold text-blue-600">{filteredSalesData.filter(s => s.saleType === 'CASH').length} <span className="text-xs font-normal">عملية</span></div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.sales.installment}</div>
-              <div className="text-xl font-bold text-purple-600">{salesReport.summary.installmentSales} <span className="text-xs font-normal">عملية</span></div>
+              <div className="text-xl font-bold text-purple-600">{filteredSalesData.filter(s => s.saleType === 'INSTALLMENT').length} <span className="text-xs font-normal">عملية</span></div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.sales.totalPrice}</div>
-              <div className="text-xl font-bold">{formatCurrency(salesReport.summary.totalAmount)}</div>
+              <div className="text-xl font-bold">{formatCurrency(filteredSalesData.reduce((sum, s) => sum + Number(s.totalPrice || 0), 0))}</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.sales.paidAmount}</div>
-              <div className="text-xl font-bold text-teal-600">{formatCurrency(salesReport.summary.totalPaid)}</div>
+              <div className="text-xl font-bold text-teal-600">{formatCurrency(filteredSalesData.reduce((sum, s) => sum + Number(s.paidAmount || 0), 0))}</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.sales.remainingAmount}</div>
-              <div className="text-xl font-bold text-orange-600">{formatCurrency(salesReport.summary.totalRemaining)}</div>
+              <div className="text-xl font-bold text-orange-600">{formatCurrency(filteredSalesData.reduce((sum, s) => sum + Number(s.remainingAmount || 0), 0))}</div>
             </div>
           </div>
 
@@ -432,7 +556,7 @@ export default function Reports() {
                   <tr>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">{ar.sales.receiptNumber}</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">{ar.customers.name}</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">الإدارة</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">نوع العميل والإدارة</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">رقم الماكينة</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">النظام</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">{ar.sales.saleType}</th>
@@ -443,14 +567,41 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {salesReport.sales.map((sale) => (
+                  {filteredSalesData.map((sale) => (
                     <tr key={sale.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2.5 font-mono text-sm">{sale.receiptNumber}</td>
                       <td className="px-4 py-2.5">
-                        <div className="font-medium">{sale.customer?.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{sale.customer?.bkCode}</div>
+                        <div className="font-bold text-slate-900">{sale.customer?.name || 'غير معروف'}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {sale.customer?.bkCode && (
+                            <span className="text-[10px] text-blue-800 bg-blue-50 px-1.5 py-0.2 rounded font-mono font-bold">
+                              #{sale.customer.bkCode}
+                            </span>
+                          )}
+                          {sale.customer?.phone && (
+                            <span className="text-[10px] text-slate-500 font-mono dir-ltr">
+                              📞 {sale.customer.phone}
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-500">{sale.customer?.department || '-'}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {sale.customer?.customerType ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                              {sale.customer.customerType}
+                            </span>
+                          ) : null}
+                          {sale.customer?.department ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                              {sale.customer.department}
+                            </span>
+                          ) : null}
+                          {!sale.customer?.customerType && !sale.customer?.department && (
+                            <span className="text-slate-400 text-xs">-</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-2.5 font-mono text-xs">{sale.machineSerial}</td>
                       <td className="px-4 py-2.5 text-xs">
                         {sale.saleType === 'INSTALLMENT' ? `${sale.months} شهر` : '-'}
@@ -466,6 +617,13 @@ export default function Reports() {
                       <td className="px-4 py-2.5 text-slate-500">{formatDate(sale.saleDate)}</td>
                     </tr>
                   ))}
+                  {filteredSalesData.length === 0 && (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
+                        {ar.common.noData}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -473,12 +631,13 @@ export default function Reports() {
         ) : (
           <div className="space-y-6">
             {Object.entries(
-              salesReport.sales.reduce((groups: any, sale) => {
+              filteredSalesData.reduce((groups: any, sale) => {
                 const key = groupBy === 'customer' 
                   ? (sale.customer?.name || 'غير معروف')
                   : new Date(sale.saleDate).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
-                if (!groups[key]) groups[key] = { items: [], total: 0, paid: 0, remaining: 0 };
+                if (!groups[key]) groups[key] = { items: [], total: 0, paid: 0, remaining: 0, customer: sale.customer };
                 groups[key].items.push(sale);
+                if (!groups[key].customer && sale.customer) groups[key].customer = sale.customer;
                 groups[key].total = Math.round((groups[key].total + Number(sale.totalPrice || 0)) * 100) / 100;
                 groups[key].paid = Math.round((groups[key].paid + Number(sale.paidAmount || 0)) * 100) / 100;
                 groups[key].remaining = Math.round((groups[key].remaining + Number(sale.remainingAmount || 0)) * 100) / 100;
@@ -486,8 +645,35 @@ export default function Reports() {
               }, {})
             ).map(([groupName, group]: any) => (
               <div key={groupName} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-                  <h3 className="font-bold text-[#0A2472]">{groupName} ({group.items.length} عملية)</h3>
+                <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-[#0A2472]">{groupName}</h3>
+                    {groupBy === 'customer' && group.customer && (
+                      <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                        {group.customer.bkCode && (
+                          <span className="font-mono bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                            #{group.customer.bkCode}
+                          </span>
+                        )}
+                        {group.customer.customerType && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                            {group.customer.customerType}
+                          </span>
+                        )}
+                        {group.customer.department && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                            {group.customer.department}
+                          </span>
+                        )}
+                        {group.customer.phone && (
+                          <span className="font-mono text-slate-500 text-[11px] dir-ltr mr-1">
+                            📞 {group.customer.phone}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <span className="text-xs text-slate-500">({group.items.length} عملية)</span>
+                  </div>
                   <div className="flex gap-4 text-xs">
                     <span className="font-semibold text-slate-600">إجمالي: {formatCurrency(group.total)}</span>
                     <span className="font-semibold text-teal-600">مدفوع: {formatCurrency(group.paid)}</span>
@@ -582,7 +768,7 @@ export default function Reports() {
                     <th className="px-4 py-3 text-right">رقم الإيصال</th>
                     <th className="px-4 py-3 text-right">اسم العميل</th>
                     <th className="px-4 py-3 text-right">كود العميل</th>
-                    <th className="px-4 py-3 text-right">الإدارة</th>
+                    <th className="px-4 py-3 text-right">نوع العميل والإدارة</th>
                     <th className="px-4 py-3 text-right">رقم الماكينة</th>
                     <th className="px-4 py-3 text-right">تاريخ البيع</th>
                     <th className="px-4 py-3 text-right">المبلغ المسدد كاش</th>
@@ -591,12 +777,31 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {salesReport.sales.map((sale) => (
+                  {filteredSalesData.filter(s => s.saleType === 'CASH').map((sale) => (
                     <tr key={sale.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-4 py-3 font-mono font-bold text-slate-700">{sale.downPaymentReceipt || sale.receiptNumber}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{sale.customer?.name}</td>
-                      <td className="px-4 py-3 font-mono text-slate-600">{sale.customer?.bkCode}</td>
-                      <td className="px-4 py-3 text-slate-600">{sale.customer?.department || '-'}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-slate-900">{sale.customer?.name}</div>
+                        {sale.customer?.phone && (
+                          <div className="text-[10px] text-slate-500 font-mono dir-ltr">📞 {sale.customer.phone}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-600">#{sale.customer?.bkCode || '-'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {sale.customer?.customerType && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                              {sale.customer.customerType}
+                            </span>
+                          )}
+                          {sale.customer?.department && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                              {sale.customer.department}
+                            </span>
+                          )}
+                          {!sale.customer?.customerType && !sale.customer?.department && '-'}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 font-mono text-slate-700">{sale.machineSerial}</td>
                       <td className="px-4 py-3 text-slate-600">{formatDate(sale.saleDate)}</td>
                       <td className="px-4 py-3 font-bold text-emerald-700">{formatCurrency(sale.totalPrice)}</td>
@@ -604,7 +809,7 @@ export default function Reports() {
                       <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px] truncate">{sale.notes || '-'}</td>
                     </tr>
                   ))}
-                  {salesReport.sales.length === 0 && (
+                  {filteredSalesData.filter(s => s.saleType === 'CASH').length === 0 && (
                     <tr>
                       <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                         لا توجد أي مبيعات نقدية (كاش) مسجلة في هذه الفترة
@@ -624,23 +829,23 @@ export default function Reports() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.reports.totalCollections}</div>
-              <div className="text-xl font-bold text-teal-600">{formatCurrency(collectionsReport.summary.totalAmount)}</div>
+              <div className="text-xl font-bold text-teal-600">{formatCurrency(filteredCollectionsData.reduce((sum, p) => sum + Number(p.amount || 0), 0))}</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.payments.cashSale}</div>
-              <div className="text-xl font-bold text-blue-600">{formatCurrency(collectionsReport.summary.cashPayments)}</div>
+              <div className="text-xl font-bold text-blue-600">{formatCurrency(filteredCollectionsData.filter(p => p.paymentType === 'CASH_SALE').reduce((sum, p) => sum + Number(p.amount || 0), 0))}</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.payments.downPayment}</div>
-              <div className="text-xl font-bold text-purple-600">{formatCurrency(collectionsReport.summary.downPayments)}</div>
+              <div className="text-xl font-bold text-purple-600">{formatCurrency(filteredCollectionsData.filter(p => p.paymentType === 'DOWN_PAYMENT').reduce((sum, p) => sum + Number(p.amount || 0), 0))}</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.payments.installment}</div>
-              <div className="text-xl font-bold text-green-600">{formatCurrency(collectionsReport.summary.installmentPayments)}</div>
+              <div className="text-xl font-bold text-green-600">{formatCurrency(filteredCollectionsData.filter(p => p.paymentType === 'INSTALLMENT').reduce((sum, p) => sum + Number(p.amount || 0), 0))}</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.common.paymentCount}</div>
-              <div className="text-xl font-bold">{collectionsReport.summary.totalPayments}</div>
+              <div className="text-xl font-bold">{filteredCollectionsData.length}</div>
             </div>
           </div>
 
@@ -652,7 +857,7 @@ export default function Reports() {
                   <tr>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">{ar.payments.receiptNumber}</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">{ar.customers.name}</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">الإدارة</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">نوع العميل والإدارة</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">رقم الماكينة</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">النظام</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">{ar.payments.paymentType}</th>
@@ -661,14 +866,41 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {collectionsReport.payments.map((pay) => (
+                  {filteredCollectionsData.map((pay) => (
                     <tr key={pay.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2.5 font-mono text-sm">{pay.receiptNumber}</td>
                       <td className="px-4 py-2.5">
-                        <div className="font-medium">{pay.sale?.customer?.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{pay.sale?.customer?.bkCode}</div>
+                        <div className="font-bold text-slate-900">{pay.sale?.customer?.name || 'غير معروف'}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {pay.sale?.customer?.bkCode && (
+                            <span className="text-[10px] text-blue-800 bg-blue-50 px-1.5 py-0.2 rounded font-mono font-bold">
+                              #{pay.sale.customer.bkCode}
+                            </span>
+                          )}
+                          {pay.sale?.customer?.phone && (
+                            <span className="text-[10px] text-slate-500 font-mono dir-ltr">
+                              📞 {pay.sale.customer.phone}
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-500">{pay.sale?.customer?.department || '-'}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {pay.sale?.customer?.customerType ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                              {pay.sale.customer.customerType}
+                            </span>
+                          ) : null}
+                          {pay.sale?.customer?.department ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                              {pay.sale.customer.department}
+                            </span>
+                          ) : null}
+                          {!pay.sale?.customer?.customerType && !pay.sale?.customer?.department && (
+                            <span className="text-slate-400 text-xs">-</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-2.5 font-mono text-xs">{pay.sale?.machineSerial}</td>
                       <td className="px-4 py-2.5 text-xs">
                         {pay.sale?.saleType === 'INSTALLMENT' ? `${pay.sale?.months} شهر` : '-'}
@@ -685,6 +917,13 @@ export default function Reports() {
                       <td className="px-4 py-2.5 text-slate-500">{formatDate(pay.paidAt)}</td>
                     </tr>
                   ))}
+                  {filteredCollectionsData.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                        {ar.common.noData}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -692,19 +931,47 @@ export default function Reports() {
         ) : (
           <div className="space-y-6">
             {Object.entries(
-              collectionsReport.payments.reduce((groups: any, pay) => {
+              filteredCollectionsData.reduce((groups: any, pay) => {
                 const key = groupBy === 'customer' 
                   ? (pay.sale?.customer?.name || 'غير معروف')
                   : new Date(pay.paidAt).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
-                if (!groups[key]) groups[key] = { items: [], total: 0 };
+                if (!groups[key]) groups[key] = { items: [], total: 0, customer: pay.sale?.customer };
                 groups[key].items.push(pay);
+                if (!groups[key].customer && pay.sale?.customer) groups[key].customer = pay.sale.customer;
                 groups[key].total = Math.round((groups[key].total + Number(pay.amount || 0)) * 100) / 100;
                 return groups;
               }, {})
             ).map(([groupName, group]: any) => (
               <div key={groupName} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-emerald-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-                  <h3 className="font-bold text-emerald-800">{groupName} ({group.items.length} تحصيل)</h3>
+                <div className="bg-emerald-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-emerald-800">{groupName}</h3>
+                    {groupBy === 'customer' && group.customer && (
+                      <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                        {group.customer.bkCode && (
+                          <span className="font-mono bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                            #{group.customer.bkCode}
+                          </span>
+                        )}
+                        {group.customer.customerType && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                            {group.customer.customerType}
+                          </span>
+                        )}
+                        {group.customer.department && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                            {group.customer.department}
+                          </span>
+                        )}
+                        {group.customer.phone && (
+                          <span className="font-mono text-slate-500 text-[11px] dir-ltr mr-1">
+                            📞 {group.customer.phone}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <span className="text-xs text-slate-500">({group.items.length} تحصيل)</span>
+                  </div>
                   <div className="font-bold text-emerald-700">إجمالي: {formatCurrency(group.total)}</div>
                 </div>
                 <div className="overflow-x-auto">
@@ -744,11 +1011,11 @@ export default function Reports() {
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.reports.totalOverdue}</div>
-              <div className="text-xl font-bold text-red-600">{overdueReport.summary.totalOverdue}</div>
+              <div className="text-xl font-bold text-red-600">{filteredOverdueData.length}</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
               <div className="text-xs text-slate-500">{ar.reports.overdueAmount}</div>
-              <div className="text-xl font-bold text-red-600">{formatCurrency(overdueReport.summary.totalAmount)}</div>
+              <div className="text-xl font-bold text-red-600">{formatCurrency(filteredOverdueData.reduce((sum, i) => sum + (Number(i.amount) - Number(i.paidAmount || 0)), 0))}</div>
             </div>
           </div>
 
@@ -765,7 +1032,7 @@ export default function Reports() {
                 <thead className="bg-slate-50">
                   <tr>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">{ar.customers.name}</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">الإدارة</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">نوع العميل والإدارة</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">رقم الماكينة</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">النظام</th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500">رقم العقد</th>
@@ -775,13 +1042,40 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {overdueReport.overdue.map((inst) => (
+                  {filteredOverdueData.map((inst) => (
                     <tr key={inst.id} className="bg-red-50/50">
                       <td className="px-4 py-2.5">
-                        <div className="font-medium">{inst.sale?.customer?.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{inst.sale?.customer?.bkCode}</div>
+                        <div className="font-bold text-slate-900">{inst.sale?.customer?.name || 'غير معروف'}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {inst.sale?.customer?.bkCode && (
+                            <span className="text-[10px] text-blue-800 bg-blue-50 px-1.5 py-0.2 rounded font-mono font-bold">
+                              #{inst.sale.customer.bkCode}
+                            </span>
+                          )}
+                          {inst.sale?.customer?.phone && (
+                            <span className="text-[10px] text-slate-500 font-mono dir-ltr">
+                              📞 {inst.sale.customer.phone}
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-2.5 text-xs font-semibold text-slate-600">{inst.sale?.customer?.department || '-'}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {inst.sale?.customer?.customerType ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                              {inst.sale.customer.customerType}
+                            </span>
+                          ) : null}
+                          {inst.sale?.customer?.department ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                              {inst.sale.customer.department}
+                            </span>
+                          ) : null}
+                          {!inst.sale?.customer?.customerType && !inst.sale?.customer?.department && (
+                            <span className="text-slate-400 text-xs">-</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-2.5 font-mono text-xs">{inst.sale?.machineSerial}</td>
                       <td className="px-4 py-2.5 text-xs">{inst.sale?.months} شهر</td>
                       <td className="px-4 py-2.5 font-mono text-sm">{inst.sale?.receiptNumber}</td>
@@ -790,6 +1084,13 @@ export default function Reports() {
                       <td className="px-4 py-2.5 font-bold">{formatCurrency(Number(inst.amount) - Number(inst.paidAmount))}</td>
                     </tr>
                   ))}
+                  {filteredOverdueData.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                        لا توجد أقساط متأخرة
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -797,20 +1098,48 @@ export default function Reports() {
         ) : (
           <div className="space-y-6">
             {Object.entries(
-              overdueReport.overdue.reduce((groups: any, inst) => {
+              filteredOverdueData.reduce((groups: any, inst) => {
                 const key = groupBy === 'customer' 
                   ? (inst.sale?.customer?.name || 'غير معروف')
                   : new Date(inst.dueDate).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
-                if (!groups[key]) groups[key] = { items: [], total: 0 };
+                if (!groups[key]) groups[key] = { items: [], total: 0, customer: inst.sale?.customer };
                 groups[key].items.push(inst);
+                if (!groups[key].customer && inst.sale?.customer) groups[key].customer = inst.sale.customer;
                 const amt = Number(inst.amount || 0) - Number(inst.paidAmount || 0);
                 groups[key].total = Math.round((groups[key].total + amt) * 100) / 100;
                 return groups;
               }, {})
             ).map(([groupName, group]: any) => (
               <div key={groupName} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95">
-                <div className="bg-red-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-                  <h3 className="font-bold text-red-800">{groupName} ({group.items.length} قسط متأخر)</h3>
+                <div className="bg-red-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-red-800">{groupName}</h3>
+                    {groupBy === 'customer' && group.customer && (
+                      <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                        {group.customer.bkCode && (
+                          <span className="font-mono bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                            #{group.customer.bkCode}
+                          </span>
+                        )}
+                        {group.customer.customerType && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                            {group.customer.customerType}
+                          </span>
+                        )}
+                        {group.customer.department && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                            {group.customer.department}
+                          </span>
+                        )}
+                        {group.customer.phone && (
+                          <span className="font-mono text-slate-500 text-[11px] dir-ltr mr-1">
+                            📞 {group.customer.phone}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <span className="text-xs text-slate-500">({group.items.length} قسط متأخر)</span>
+                  </div>
                   <div className="font-bold text-red-700">المبلغ المتأخر: {formatCurrency(group.total)}</div>
                 </div>
                 <div className="overflow-x-auto">
@@ -829,9 +1158,14 @@ export default function Reports() {
                         <tr key={inst.id} className="hover:bg-red-50/50">
                           <td className="px-4 py-2">
                              <div className="font-medium text-[11px]">{inst.sale?.customer?.name}</div>
-                             {inst.sale?.customer?.department && (
-                               <div className="text-[9px] text-slate-400 font-semibold">{inst.sale?.customer?.department}</div>
-                             )}
+                             <div className="flex items-center gap-1 mt-0.5">
+                               {inst.sale?.customer?.customerType && (
+                                 <span className="text-[9px] text-indigo-700 font-semibold">{inst.sale?.customer?.customerType}</span>
+                               )}
+                               {inst.sale?.customer?.department && (
+                                 <span className="text-[9px] text-slate-400 font-semibold">{inst.sale?.customer?.department}</span>
+                               )}
+                             </div>
                           </td>
                           <td className="px-4 py-2 font-mono text-xs">{inst.sale?.receiptNumber}</td>
                           <td className="px-4 py-2">قسط {inst.installmentNo}</td>
@@ -964,8 +1298,21 @@ export default function Reports() {
                     {monthClosingReport.overdue.details.map((inst: any) => (
                       <tr key={inst.id} className="hover:bg-red-50/50">
                         <td className="px-3 py-2 text-sm">
-                          <div className="font-medium">{inst.sale?.customer?.name}</div>
-                          <div className="text-[10px] text-red-400 font-mono">{inst.sale?.customer?.bkCode}</div>
+                          <div className="font-bold text-slate-800">{inst.sale?.customer?.name}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {inst.sale?.customer?.bkCode && (
+                              <span className="text-[10px] text-blue-800 bg-blue-50 px-1 py-0.2 rounded font-mono font-bold">#{inst.sale?.customer?.bkCode}</span>
+                            )}
+                            {inst.sale?.customer?.customerType && (
+                              <span className="text-[9px] text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded font-semibold">{inst.sale?.customer?.customerType}</span>
+                            )}
+                            {inst.sale?.customer?.department && (
+                              <span className="text-[9px] text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded font-semibold">{inst.sale?.customer?.department}</span>
+                            )}
+                            {inst.sale?.customer?.phone && (
+                              <span className="text-[9px] text-slate-500 font-mono dir-ltr">📞 {inst.sale?.customer?.phone}</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-xs">
                           <div className="font-mono">{inst.sale?.machineSerial}</div>
@@ -1019,7 +1366,11 @@ export default function Reports() {
           <div className="flex-1 min-w-[250px]">
             <label className="block text-xs text-slate-500 mb-2">{ar.reports.selectCustomer}</label>
             <SmartSelect
-              options={customers.map((c) => ({ id: c.id, label: c.name, sublabel: c.bkCode }))}
+              options={customers.map((c) => ({
+                id: c.id,
+                label: `${c.name} (${c.bkCode || '-'})`,
+                sublabel: [c.customerType, c.department, c.phone].filter(Boolean).join(' | '),
+              }))}
               value={selectedCustomer}
               onChange={setSelectedCustomer}
               placeholder={`-- ${ar.reports.selectCustomer} --`}
@@ -1055,6 +1406,49 @@ export default function Reports() {
 
         {customerStatement && (
           <div className="space-y-8 animate-in fade-in slide-in-from-top-2 duration-300">
+            {/* Customer Profile Banner */}
+            {customerStatement.customer && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-wrap justify-between items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-[#0A2472] text-white flex items-center justify-center font-bold text-lg">
+                    {customerStatement.customer.name?.charAt(0) || 'ع'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-lg text-slate-800">{customerStatement.customer.name}</h3>
+                      {customerStatement.customer.bkCode && (
+                        <span className="font-mono bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                          #{customerStatement.customer.bkCode}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap text-xs">
+                      {customerStatement.customer.customerType && (
+                        <span className="px-2 py-0.5 rounded-full font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                          {customerStatement.customer.customerType}
+                        </span>
+                      )}
+                      {customerStatement.customer.department && (
+                        <span className="px-2 py-0.5 rounded-full font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                          {customerStatement.customer.department}
+                        </span>
+                      )}
+                      {customerStatement.customer.phone && (
+                        <span className="font-mono text-slate-600 dir-ltr">
+                          📞 {customerStatement.customer.phone}
+                        </span>
+                      )}
+                      {customerStatement.customer.address && (
+                        <span className="text-slate-500">
+                          📍 {customerStatement.customer.address}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Account Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
