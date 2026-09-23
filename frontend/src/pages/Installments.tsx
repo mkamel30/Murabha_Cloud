@@ -91,7 +91,7 @@ export default function Installments() {
         notes: '',
         installmentIds: [selectedInst.id],
         receiptNumber: quickReceiptNumber,
-        paidAt: quickPaidAt
+        paidAt: quickPaidAt ? new Date(quickPaidAt).toISOString() : new Date().toISOString()
       });
       showToast(ar.common.success, 'success');
       setShowPayModal(false);

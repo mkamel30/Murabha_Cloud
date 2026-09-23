@@ -164,7 +164,8 @@ export default function SaleDetail() {
         ...paymentForm,
         saleId: id,
         amount: Number(paymentForm.amount),
-        receiptNumber: paymentForm.receiptNumber.trim()
+        receiptNumber: paymentForm.receiptNumber.trim(),
+        paidAt: paymentForm.paidAt ? new Date(paymentForm.paidAt).toISOString() : new Date().toISOString()
       });
       showToast(ar.common.success, 'success');
       setShowPaymentModal(false);
@@ -267,7 +268,7 @@ export default function SaleDetail() {
         notes: '',
         installmentIds: [selectedInstallment.id],
         receiptNumber: quickReceiptNumber.trim(),
-        paidAt: quickPaidAt
+        paidAt: quickPaidAt ? new Date(quickPaidAt).toISOString() : new Date().toISOString()
       });
       showToast(ar.common.success, 'success');
       setShowPayModal(false);

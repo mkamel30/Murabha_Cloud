@@ -23,6 +23,8 @@ public class PaymentRequest {
     private String paymentPlace;
     private String notes;
     private String receiptNumber;
+
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.murabha.cloud.config.FlexibleInstantDeserializer.class)
     private Instant paidAt;
     private List<UUID> installmentIds;
 }

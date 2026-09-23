@@ -49,8 +49,13 @@ public class PaymentService {
         }
         if (updates.containsKey("paidAt")) {
             Object paidAtObj = updates.get("paidAt");
-            if (paidAtObj instanceof String) {
-                payment.setPaidAt(Instant.parse((String) paidAtObj));
+            if (paidAtObj instanceof String str && !str.isBlank()) {
+                str = str.trim();
+                try {
+                    payment.setPaidAt(Instant.parse(str));
+                } catch (Exception e) {
+                    payment.setPaidAt(java.time.LocalDate.parse(str).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
+                }
             }
         }
         return paymentRepository.save(payment);
